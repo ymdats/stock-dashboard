@@ -5,17 +5,12 @@ import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useApiUsage } from '@/lib/hooks/useApiUsage';
-import { AddStockDialog } from './AddStockDialog';
 
 interface DashboardHeaderProps {
   stockCount: number;
-  onAddStock: (symbol: string) => void;
 }
 
-export function DashboardHeader({
-  stockCount,
-  onAddStock,
-}: DashboardHeaderProps) {
+export function DashboardHeader({ stockCount }: DashboardHeaderProps) {
   const { theme, setTheme } = useTheme();
   const { remaining } = useApiUsage();
 
@@ -27,14 +22,13 @@ export function DashboardHeader({
           Stock Dashboard
         </h1>
         <span className="text-sm text-muted-foreground">
-          {stockCount} {stockCount === 1 ? 'stock' : 'stocks'}
+          {stockCount} stocks
         </span>
       </div>
       <div className="flex items-center gap-2">
         <Badge variant={remaining <= 5 ? 'destructive' : 'secondary'} className="font-mono tabular-nums text-xs">
           API残り {remaining}回
         </Badge>
-        <AddStockDialog onAdd={onAddStock} />
         <Button
           variant="ghost"
           size="icon"
