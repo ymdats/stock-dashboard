@@ -12,7 +12,9 @@ export function StockAnalysisPanel({ analysis }: StockAnalysisPanelProps) {
   const verdictColor =
     analysis.verdictType === 'bullish'
       ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-      : 'text-muted-foreground bg-muted/50 border-border';
+      : analysis.verdictType === 'bearish'
+        ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30'
+        : 'text-muted-foreground bg-muted/50 border-border';
 
   return (
     <div className="border-t pt-1.5 space-y-1">

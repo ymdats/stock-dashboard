@@ -205,8 +205,8 @@ export interface NextAction {
 
 export interface StockAnalysis {
   structure: string;
-  verdict: '買い検討可' | '様子見';
-  verdictType: 'bullish' | 'neutral';
+  verdict: '買い検討可' | '売り検討可' | '様子見';
+  verdictType: 'bullish' | 'bearish' | 'neutral';
   reasons: { type: 'bullish' | 'bearish' | 'neutral'; text: string }[];
   support: number[];
   resistance: number[];
@@ -270,11 +270,12 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   const resistance = [...new Set(swHighs.slice(-3).map((h) => Math.round(h.val)))].sort((a, b) => a - b);
 
   // ========================================
-  // Data-validated verdict (30 symbols × 2y backtest)
+  // Data-validated verdict (30 symbols × 2y backtest, 7d horizon)
   // ========================================
-  // V55: RSI<30 + deep below BB = 64.1% accuracy, avg +2.59% (7d)
-  // V54: RSI<20 + below BB = 62.0% accuracy, avg +2.18% (7d)
-  // Sell signals: no statistically reliable sell signal found in data
+  // Buy: RSI<30 + deep below BB = 64.1% accuracy, avg +2.59%
+  // Buy: RSI<20 + below BB = 62.0% accuracy, avg +2.18%
+  // Sell: %B>0.95 + MACD histogram declining = 52.6% down, avg -1.78%
+  // Sell: SMA20 crossdown + MACD negative = 51.4% down, avg -0.44%
   // ========================================
 
   const deepBelowBB = bbLower !== null && price <= bbLower * 0.99;
@@ -282,18 +283,42 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   const rsiOversold = rsiVal !== null && rsiVal < 30;
   const rsiDeepOversold = rsiVal !== null && rsiVal < 20;
 
+  // Sell signal features
+  const bbBandwidth = (bbUpper !== null && bbLower !== null) ? bbUpper - bbLower : 0;
+  const pctB = bbBandwidth > 0 ? (price - bbLower!) / bbBandwidth : 0.5;
+  const macdResult = macd(closes);
+  const latestHist = macdResult.histogram[macdResult.histogram.length - 1];
+  const prevHist = macdResult.histogram[macdResult.histogram.length - 2];
+  const macdHistDeclining = latestHist !== null && prevHist !== null && latestHist < prevHist;
+  const macdLine = macdResult.macd[macdResult.macd.length - 1];
+  const macdNegative = macdLine !== null && macdLine < 0;
+
+  // SMA20 crossdown detection
+  const sma20vals = sma(closes, 20);
+  const sma20Current = sma20vals[sma20vals.length - 1];
+  const sma20Prev = sma20vals[sma20vals.length - 2];
+  const priceBelowSma20 = sma20Current !== null && price < sma20Current;
+  const prevAboveSma20 = sma20Prev !== null && closes[closes.length - 2] >= sma20Prev;
+  const crossedBelowSma20 = priceBelowSma20 && prevAboveSma20;
+
   let verdict: StockAnalysis['verdict'] = '様子見';
   let verdictType: StockAnalysis['verdictType'] = 'neutral';
 
-  // Primary buy signal: RSI<30 + price deeply below BB lower (1%+ below)
+  // Buy signals (62-64% accuracy)
   if (rsiOversold && deepBelowBB) {
     verdict = '買い検討可';
     verdictType = 'bullish';
-  }
-  // Secondary buy signal: RSI<20 + price at/below BB lower (less strict BB)
-  else if (rsiDeepOversold && belowBB) {
+  } else if (rsiDeepOversold && belowBB) {
     verdict = '買い検討可';
     verdictType = 'bullish';
+  }
+  // Sell signals (51-53% accuracy)
+  else if (pctB > 0.95 && macdHistDeclining) {
+    verdict = '売り検討可';
+    verdictType = 'bearish';
+  } else if (crossedBelowSma20 && macdNegative) {
+    verdict = '売り検討可';
+    verdictType = 'bearish';
   }
 
   // Context reasons (informational, not used for verdict)
@@ -333,6 +358,12 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   // Verdict explanation
   if (verdictType === 'bullish') {
     reasons.push({ type: 'bullish', text: '→ RSI売られすぎ+BB下限突破(精度64%)' });
+  } else if (verdictType === 'bearish') {
+    if (pctB > 0.95 && macdHistDeclining) {
+      reasons.push({ type: 'bearish', text: '→ BB上限圏+MACD失速(7d下落率53%)' });
+    } else {
+      reasons.push({ type: 'bearish', text: '→ SMA20下抜け+MACD負転(7d下落率51%)' });
+    }
   }
 
   const atrStop = atr ? price - atr * 2 : null;
