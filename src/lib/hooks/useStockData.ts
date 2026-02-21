@@ -4,11 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StockData } from '@/lib/types/stock';
 import { fetchStockData } from '@/lib/api/alphavantage';
 import { incrementApiUsage } from '@/lib/api/api-usage';
-import { getCachedStock, setCachedStock, clearCachedStock } from '@/lib/db/indexeddb';
+import { getCachedStock, setCachedStock } from '@/lib/db/indexeddb';
 import { isCacheStale } from '@/lib/utils/staleness';
-
-// Global event to trigger refresh across all StockCard instances
-export const REFRESH_EVENT = 'stock-refresh-all';
+import { STOCK_UPDATED_EVENT } from './useRefreshAll';
 
 interface UseStockDataReturn {
   data: StockData | null;
@@ -77,15 +75,22 @@ export function useStockData(symbol: string): UseStockDataReturn {
     };
   }, [symbol, fetchFresh]);
 
-  // Listen for global refresh event
+  // Listen for per-symbol update event (from useRefreshAll)
   useEffect(() => {
-    const handler = async () => {
-      await clearCachedStock(symbol);
-      await fetchFresh();
+    const handler = async (e: Event) => {
+      const sym = (e as CustomEvent).detail;
+      if (sym !== symbol) return;
+      const cached = await getCachedStock(symbol);
+      if (cached) {
+        setData(cached);
+        setLastFetched(new Date(cached.cachedAt));
+        setIsLoading(false);
+        setError(null);
+      }
     };
-    window.addEventListener(REFRESH_EVENT, handler);
-    return () => window.removeEventListener(REFRESH_EVENT, handler);
-  }, [symbol, fetchFresh]);
+    window.addEventListener(STOCK_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(STOCK_UPDATED_EVENT, handler);
+  }, [symbol]);
 
   const refresh = useCallback(async () => {
     await fetchFresh();

@@ -5,14 +5,22 @@ import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useApiUsage } from '@/lib/hooks/useApiUsage';
+import type { RefreshProgress } from '@/lib/hooks/useRefreshAll';
 
 interface DashboardHeaderProps {
   stockCount: number;
   onRefresh?: () => void;
-  isRefreshing?: boolean;
+  progress: RefreshProgress;
 }
 
-export function DashboardHeader({ stockCount, onRefresh, isRefreshing }: DashboardHeaderProps) {
+function formatRemaining(seconds: number): string {
+  if (seconds < 60) return `約${seconds}秒`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `約${m}分${s}秒` : `約${m}分`;
+}
+
+export function DashboardHeader({ stockCount, onRefresh, progress }: DashboardHeaderProps) {
   const { theme, setTheme } = useTheme();
   const { remaining } = useApiUsage();
 
@@ -28,6 +36,12 @@ export function DashboardHeader({ stockCount, onRefresh, isRefreshing }: Dashboa
         </span>
       </div>
       <div className="flex items-center gap-2">
+        {progress.isRefreshing && (
+          <span className="text-xs text-muted-foreground font-mono tabular-nums">
+            {progress.currentSymbol} 取得中 ({progress.current + 1}/{progress.total})
+            {' '}残り{formatRemaining(progress.remainingSeconds)}
+          </span>
+        )}
         <Badge variant={remaining <= 5 ? 'destructive' : 'secondary'} className="font-mono tabular-nums text-xs">
           API残り {remaining}回
         </Badge>
@@ -36,10 +50,10 @@ export function DashboardHeader({ stockCount, onRefresh, isRefreshing }: Dashboa
           size="sm"
           className="h-8 gap-1.5 text-xs"
           onClick={onRefresh}
-          disabled={isRefreshing}
+          disabled={progress.isRefreshing}
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? '更新中…' : 'データ更新'}
+          <RefreshCw className={`h-3.5 w-3.5 ${progress.isRefreshing ? 'animate-spin' : ''}`} />
+          {progress.isRefreshing ? '更新中…' : 'データ更新'}
         </Button>
         <Button
           variant="ghost"
