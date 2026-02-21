@@ -158,6 +158,161 @@ export function bollingerBands(
   return { upper, middle, lower };
 }
 
+// ATR (Average True Range)
+function calcAtr(bars: DailyBar[], period: number = 14): number | null {
+  if (bars.length < period + 1) return null;
+  const trs: number[] = [];
+  for (let i = 1; i < bars.length; i++) {
+    const tr = Math.max(
+      bars[i].high - bars[i].low,
+      Math.abs(bars[i].high - bars[i - 1].close),
+      Math.abs(bars[i].low - bars[i - 1].close),
+    );
+    trs.push(tr);
+  }
+  return trs.slice(-period).reduce((s, v) => s + v, 0) / period;
+}
+
+// Swing point detection
+function findSwingHighs(data: number[], window: number = 5): { idx: number; val: number }[] {
+  const result: { idx: number; val: number }[] = [];
+  for (let i = window; i < data.length - window; i++) {
+    const slice = data.slice(i - window, i + window + 1);
+    if (data[i] === Math.max(...slice)) {
+      result.push({ idx: i, val: data[i] });
+    }
+  }
+  return result;
+}
+
+function findSwingLows(data: number[], window: number = 5): { idx: number; val: number }[] {
+  const result: { idx: number; val: number }[] = [];
+  for (let i = window; i < data.length - window; i++) {
+    const slice = data.slice(i - window, i + window + 1);
+    if (data[i] === Math.min(...slice)) {
+      result.push({ idx: i, val: data[i] });
+    }
+  }
+  return result;
+}
+
+// Rules-based analysis
+export interface StockAnalysis {
+  structure: string;
+  verdict: '買い検討可' | '買い検討(条件付)' | '様子見' | '見送り推奨' | '見送り';
+  verdictType: 'bullish' | 'bearish' | 'neutral';
+  reasons: { type: 'bullish' | 'bearish' | 'neutral'; text: string }[];
+  support: number[];
+  resistance: number[];
+  atrStop: number | null;
+  atrTarget: number | null;
+  upsidePct: number | null;
+  downsideRisk: number | null;
+}
+
+export function analyzeStock(bars: DailyBar[]): StockAnalysis {
+  const closes = bars.map((b) => b.close);
+  const highs = bars.map((b) => b.high);
+  const lows = bars.map((b) => b.low);
+  const volumes = bars.map((b) => b.volume);
+  const price = closes[closes.length - 1];
+
+  // 1. Market Structure (Price Action first)
+  const swHighs = findSwingHighs(closes, 5);
+  const swLows = findSwingLows(closes, 5);
+  let structure = 'レンジ';
+  if (swHighs.length >= 2 && swLows.length >= 2) {
+    const hh = swHighs[swHighs.length - 1].val > swHighs[swHighs.length - 2].val;
+    const hl = swLows[swLows.length - 1].val > swLows[swLows.length - 2].val;
+    const lh = swHighs[swHighs.length - 1].val < swHighs[swHighs.length - 2].val;
+    const ll = swLows[swLows.length - 1].val < swLows[swLows.length - 2].val;
+    if (hh && hl) structure = '上昇 (HH+HL)';
+    else if (lh && ll) structure = '下降 (LH+LL)';
+    else if (lh && hl) structure = '収束';
+    else if (hh && ll) structure = '拡散';
+  }
+
+  // 2. Trend filter (SMA50)
+  const sma50vals = sma(closes, 50);
+  const sma50 = sma50vals[sma50vals.length - 1];
+  const aboveSma50 = sma50 !== null ? price > sma50 : null;
+
+  // 3. Momentum (RSI only - 1 indicator per category)
+  const rsiVals = rsi(closes, 14);
+  const rsiVal = rsiVals[rsiVals.length - 1];
+
+  // 4. Volume context
+  const avgVol20 = volumes.slice(-20).reduce((s, v) => s + v, 0) / Math.min(20, volumes.length);
+  const latestVol = volumes[volumes.length - 1];
+  const volRatio = latestVol / avgVol20;
+
+  // 5. ATR for targets
+  const atr = calcAtr(bars);
+
+  // 6. 90d range
+  const high90 = Math.max(...highs);
+  const low90 = Math.min(...lows);
+  const fromHigh = ((price - high90) / high90) * 100;
+
+  // 7. BB position
+  const bb = bollingerBands(closes, 20, 2);
+  const bbUpper = bb.upper[bb.upper.length - 1];
+  const bbLower = bb.lower[bb.lower.length - 1];
+
+  // Support/Resistance
+  const support = [...new Set(swLows.slice(-3).map((l) => Math.round(l.val)))].sort((a, b) => a - b);
+  const resistance = [...new Set(swHighs.slice(-3).map((h) => Math.round(h.val)))].sort((a, b) => a - b);
+
+  // Assessment
+  const reasons: { type: 'bullish' | 'bearish' | 'neutral'; text: string }[] = [];
+
+  if (structure.includes('上昇')) reasons.push({ type: 'bullish', text: `価格構造: ${structure}` });
+  else if (structure.includes('下降')) reasons.push({ type: 'bearish', text: `価格構造: ${structure}` });
+  else reasons.push({ type: 'neutral', text: `価格構造: ${structure}` });
+
+  if (aboveSma50 === true) reasons.push({ type: 'bullish', text: `SMA50($${sma50!.toFixed(0)})上 → 上昇トレンド` });
+  else if (aboveSma50 === false) reasons.push({ type: 'bearish', text: `SMA50($${sma50!.toFixed(0)})下 → 下降トレンド` });
+
+  if (rsiVal !== null) {
+    if (rsiVal < 30) reasons.push({ type: 'bullish', text: `RSI=${rsiVal.toFixed(0)} 売られすぎ` });
+    else if (rsiVal > 70) reasons.push({ type: 'bearish', text: `RSI=${rsiVal.toFixed(0)} 買われすぎ` });
+  }
+
+  if (volRatio > 1.5 && closes[closes.length - 1] > closes[closes.length - 2]) {
+    reasons.push({ type: 'bullish', text: `出来高急増(${(volRatio * 100).toFixed(0)}%)+陽線` });
+  } else if (volRatio > 1.5 && closes[closes.length - 1] < closes[closes.length - 2]) {
+    reasons.push({ type: 'bearish', text: `出来高急増(${(volRatio * 100).toFixed(0)}%)+陰線` });
+  }
+
+  if (bbLower !== null && price <= bbLower * 1.01) {
+    reasons.push({ type: 'bullish', text: `BB下限タッチ → 反発ゾーン` });
+  } else if (bbUpper !== null && price >= bbUpper * 0.99) {
+    reasons.push({ type: 'bearish', text: `BB上限タッチ → 反落リスク` });
+  }
+
+  if (fromHigh < -15) {
+    reasons.push({ type: 'bullish', text: `高値から${fromHigh.toFixed(0)}% 大幅下落済み` });
+  }
+
+  const bullCount = reasons.filter((r) => r.type === 'bullish').length;
+  const bearCount = reasons.filter((r) => r.type === 'bearish').length;
+
+  let verdict: StockAnalysis['verdict'];
+  let verdictType: StockAnalysis['verdictType'];
+  if (bullCount >= 3 && bearCount <= 1) { verdict = '買い検討可'; verdictType = 'bullish'; }
+  else if (bullCount >= 2 && bullCount > bearCount) { verdict = '買い検討(条件付)'; verdictType = 'bullish'; }
+  else if (bearCount >= 3 && bullCount <= 1) { verdict = '見送り'; verdictType = 'bearish'; }
+  else if (bearCount >= 2 && bearCount > bullCount) { verdict = '見送り推奨'; verdictType = 'bearish'; }
+  else { verdict = '様子見'; verdictType = 'neutral'; }
+
+  const atrStop = atr ? price - atr * 2 : null;
+  const atrTarget = atr ? price + atr * 3 : null;
+  const upsidePct = atrTarget ? ((atrTarget - price) / price) * 100 : null;
+  const downsideRisk = atrStop ? ((price - atrStop) / price) * 100 : null;
+
+  return { structure, verdict, verdictType, reasons, support, resistance, atrStop, atrTarget, upsidePct, downsideRisk };
+}
+
 // Signal detection
 export interface Signal {
   type: 'bullish' | 'bearish' | 'neutral';

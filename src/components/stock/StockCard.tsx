@@ -8,11 +8,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useStockData } from '@/lib/hooks/useStockData';
-import { detectSignals } from '@/lib/utils/indicators';
+import { detectSignals, analyzeStock } from '@/lib/utils/indicators';
 import { STOCK_NAMES } from '@/config/defaults';
 import { StockKPI } from './StockKPI';
 import { StockChart } from './StockChart';
 import { StockChartSkeleton } from './StockChartSkeleton';
+import { StockAnalysisPanel } from './StockAnalysisPanel';
 
 interface StockCardProps {
   symbol: string;
@@ -34,6 +35,7 @@ export function StockCard({ symbol }: StockCardProps) {
     useStockData(symbol);
 
   const signals = data ? detectSignals(data.bars) : [];
+  const analysis = data ? analyzeStock(data.bars) : null;
 
   return (
     <Card className="overflow-hidden">
@@ -90,6 +92,10 @@ export function StockCard({ symbol }: StockCardProps) {
             </div>
 
             <StockChart data={data.bars} symbol={symbol} />
+
+            {analysis && (
+              <StockAnalysisPanel analysis={analysis} price={data.quote.price} />
+            )}
           </>
         )}
       </CardContent>
