@@ -3,6 +3,8 @@
 import { Moon, Sun, TrendingUp } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useApiUsage } from '@/lib/hooks/useApiUsage';
 import { AddStockDialog } from './AddStockDialog';
 
 interface DashboardHeaderProps {
@@ -15,6 +17,7 @@ export function DashboardHeader({
   onAddStock,
 }: DashboardHeaderProps) {
   const { theme, setTheme } = useTheme();
+  const { remaining } = useApiUsage();
 
   return (
     <header className="flex items-center justify-between">
@@ -28,6 +31,9 @@ export function DashboardHeader({
         </span>
       </div>
       <div className="flex items-center gap-2">
+        <Badge variant={remaining <= 5 ? 'destructive' : 'secondary'} className="font-mono tabular-nums text-xs">
+          API {remaining}/25
+        </Badge>
         <AddStockDialog onAdd={onAddStock} />
         <Button
           variant="ghost"

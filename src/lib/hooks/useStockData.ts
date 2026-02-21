@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StockData } from '@/lib/types/stock';
 import { fetchStockData } from '@/lib/api/alphavantage';
+import { incrementApiUsage } from '@/lib/api/api-usage';
 import { getCachedStock, setCachedStock } from '@/lib/db/indexeddb';
 import { isCacheStale } from '@/lib/utils/staleness';
 
@@ -26,6 +27,7 @@ export function useStockData(symbol: string): UseStockDataReturn {
       setIsLoading(true);
       setError(null);
       const freshData = await fetchStockData(symbol);
+      incrementApiUsage();
       if (!mountedRef.current) return;
 
       const now = Date.now();
