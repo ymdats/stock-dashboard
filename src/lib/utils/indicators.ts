@@ -239,10 +239,12 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
     else if (hh && ll) structure = '拡散';
   }
 
-  // 2. Trend filter (SMA50)
+  // 2. Trend filter (SMA50 + slope)
   const sma50vals = sma(closes, 50);
   const sma50 = sma50vals[sma50vals.length - 1];
+  const sma50prev = closes.length >= 60 ? sma50vals[closes.length - 11] : null;
   const aboveSma50 = sma50 !== null ? price > sma50 : null;
+  const sma50Rising = (sma50 !== null && sma50prev !== null) ? sma50 > sma50prev : null;
 
   // 3. Momentum (RSI only - 1 indicator per category)
   const rsiVals = rsi(closes, 14);
@@ -311,6 +313,26 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   else if (bearCount >= 3 && bullCount <= 1) { verdict = '見送り'; verdictType = 'bearish'; }
   else if (bearCount >= 2 && bearCount > bullCount) { verdict = '見送り推奨'; verdictType = 'bearish'; }
   else { verdict = '様子見'; verdictType = 'neutral'; }
+
+  // Disqualifiers: downgrade bullish to neutral when conviction is weak
+  if (verdictType === 'bullish') {
+    if (fromHigh > -3) {
+      // DQ1: Near 90d high = overextended
+      verdictType = 'neutral';
+      verdict = '様子見';
+      reasons.push({ type: 'neutral', text: `高値圏(${fromHigh.toFixed(1)}%) → 見送り` });
+    } else if (aboveSma50 === true && sma50Rising === false) {
+      // DQ2: Above SMA50 but slope declining = trend weakening
+      verdictType = 'neutral';
+      verdict = '様子見';
+      reasons.push({ type: 'neutral', text: 'SMA50下降中 → トレンド弱化' });
+    } else if (bearCount >= 1 && bullCount < 3) {
+      // DQ3: Mixed signals without strong bull conviction
+      verdictType = 'neutral';
+      verdict = '様子見';
+      reasons.push({ type: 'neutral', text: '売り信号混在 → 確信不足' });
+    }
+  }
 
   const atrStop = atr ? price - atr * 2 : null;
   const atrTarget = atr ? price + atr * 3 : null;
