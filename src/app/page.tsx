@@ -10,13 +10,15 @@ export default function Home() {
   const { progress, refresh } = useRefreshAll(symbols);
 
   return (
-    <div className="px-4 py-4 space-y-4 lg:px-6">
+    <div className="h-dvh flex flex-col px-4 py-3 lg:px-6">
       <DashboardHeader
         stockCount={symbols.length}
         onRefresh={refresh}
         progress={progress}
       />
-      <StockGrid symbols={symbols} />
+      <div className="flex-1 min-h-0 mt-3">
+        <StockGrid symbols={symbols} />
+      </div>
     </div>
   );
 }

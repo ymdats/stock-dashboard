@@ -13,10 +13,10 @@ export function StockKPI({ quote }: StockKPIProps) {
 
   return (
     <div className="flex items-baseline gap-2">
-      <span className="font-mono text-lg font-bold tabular-nums">
+      <span className="font-mono text-xl font-bold tabular-nums">
         {formatPrice(quote.price)}
       </span>
-      <span className={`font-mono text-xs tabular-nums ${colorClass}`}>
+      <span className={`font-mono text-sm tabular-nums ${colorClass}`}>
         {formatChange(quote.change)} ({formatPercent(quote.changePercent)})
       </span>
     </div>

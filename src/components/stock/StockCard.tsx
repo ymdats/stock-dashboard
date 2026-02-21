@@ -38,30 +38,30 @@ export function StockCard({ symbol }: StockCardProps) {
   const analysis = data ? analyzeStock(data.bars) : null;
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between px-3 py-2">
+    <Card className="overflow-hidden flex flex-col h-full">
+      <CardHeader className="flex flex-row items-center justify-between px-4 py-2.5 shrink-0">
         <div className="flex items-baseline gap-2 min-w-0">
-          <span className="font-mono font-semibold text-sm">{symbol}</span>
-          <span className="text-[11px] text-muted-foreground truncate">
+          <span className="font-mono font-semibold text-base">{symbol}</span>
+          <span className="text-xs text-muted-foreground truncate">
             {STOCK_NAMES[symbol] ?? symbol}
           </span>
         </div>
         {lastFetched && (
-          <span className="text-[10px] text-muted-foreground shrink-0">
+          <span className="text-xs text-muted-foreground shrink-0">
             {formatTimeAgo(lastFetched)}
           </span>
         )}
       </CardHeader>
-      <CardContent className="px-3 pb-2 pt-0 space-y-1">
+      <CardContent className="px-4 pb-3 pt-0 flex-1 flex flex-col min-h-0 gap-1.5">
         {error && (
-          <p className="text-xs text-red-500">{error}</p>
+          <p className="text-sm text-red-500">{error}</p>
         )}
 
         {isLoading && !data && <StockChartSkeleton />}
 
         {data && (
           <>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
               <StockKPI quote={data.quote} />
               {signals.length > 0 && (
                 <div className="flex flex-wrap gap-1">
@@ -70,7 +70,7 @@ export function StockCard({ symbol }: StockCardProps) {
                       <TooltipTrigger asChild>
                         <Badge
                           variant={signal.type === 'neutral' ? 'secondary' : 'outline'}
-                          className={`text-[9px] font-medium cursor-help py-0 px-1.5 ${
+                          className={`text-[11px] font-medium cursor-help py-0.5 px-2 ${
                             signal.type === 'bullish'
                               ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
                               : signal.type === 'bearish'
@@ -82,7 +82,7 @@ export function StockCard({ symbol }: StockCardProps) {
                           {signal.label}
                         </Badge>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                      <TooltipContent side="bottom" className="text-sm max-w-[240px]">
                         {signal.description}
                       </TooltipContent>
                     </Tooltip>
@@ -91,10 +91,14 @@ export function StockCard({ symbol }: StockCardProps) {
               )}
             </div>
 
-            <StockChart data={data.bars} symbol={symbol} />
+            <div className="flex-1 min-h-0">
+              <StockChart data={data.bars} symbol={symbol} />
+            </div>
 
             {analysis && (
-              <StockAnalysisPanel analysis={analysis} price={data.quote.price} />
+              <div className="shrink-0">
+                <StockAnalysisPanel analysis={analysis} price={data.quote.price} />
+              </div>
             )}
           </>
         )}

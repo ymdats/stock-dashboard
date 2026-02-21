@@ -17,23 +17,23 @@ export function StockAnalysisPanel({ analysis, price }: StockAnalysisPanelProps)
         : 'text-muted-foreground bg-muted/50 border-border';
 
   return (
-    <div className="mt-1 border-t pt-1.5 space-y-1">
+    <div className="border-t pt-2 space-y-1.5">
       {/* Verdict + Structure */}
       <div className="flex items-center justify-between gap-2">
-        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${verdictColor}`}>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${verdictColor}`}>
           {analysis.verdict}
         </span>
-        <span className="text-[10px] text-muted-foreground font-mono">
+        <span className="text-xs text-muted-foreground font-mono">
           構造: {analysis.structure}
         </span>
       </div>
 
       {/* Reasons */}
-      <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
         {analysis.reasons.map((r) => (
           <span
             key={r.text}
-            className={`text-[9px] ${
+            className={`text-[11px] ${
               r.type === 'bullish'
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : r.type === 'bearish'
@@ -48,7 +48,7 @@ export function StockAnalysisPanel({ analysis, price }: StockAnalysisPanelProps)
 
       {/* Target / Stop / Support / Resistance */}
       {analysis.atrTarget && analysis.atrStop && (
-        <div className="grid grid-cols-2 gap-x-2 text-[9px] font-mono tabular-nums">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] font-mono tabular-nums">
           <div>
             <span className="text-muted-foreground">Target: </span>
             <span className="text-emerald-600 dark:text-emerald-400">
@@ -78,8 +78,8 @@ export function StockAnalysisPanel({ analysis, price }: StockAnalysisPanelProps)
 
       {/* Next Actions */}
       {analysis.nextActions.length > 0 && (
-        <div className="border-t border-dashed pt-1">
-          <p className="text-[9px] text-muted-foreground font-semibold mb-0.5">次のアクション条件</p>
+        <div className="border-t border-dashed pt-1.5">
+          <p className="text-[11px] text-muted-foreground font-semibold mb-1">次のアクション条件</p>
           <div className="space-y-0.5">
             {analysis.nextActions
               .sort((a, b) => {
@@ -88,7 +88,7 @@ export function StockAnalysisPanel({ analysis, price }: StockAnalysisPanelProps)
               })
               .slice(0, 4)
               .map((na) => (
-                <div key={na.trigger} className="flex items-start gap-1 text-[9px]">
+                <div key={na.trigger} className="flex items-start gap-1.5 text-[11px]">
                   <span
                     className={`shrink-0 ${
                       na.action === '買い'
