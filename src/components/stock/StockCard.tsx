@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStockData } from '@/lib/hooks/useStockData';
 import { detectSignals } from '@/lib/utils/indicators';
+import { STOCK_NAMES } from '@/config/defaults';
 import { StockKPI } from './StockKPI';
 import { StockChart } from './StockChart';
 import { StockChartSkeleton } from './StockChartSkeleton';
@@ -35,8 +36,13 @@ export function StockCard({ symbol, onRemove }: StockCardProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <span className="font-mono font-semibold text-base">{symbol}</span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span className="font-mono font-semibold text-base">{symbol}</span>
+          <span className="text-xs text-muted-foreground truncate">
+            {STOCK_NAMES[symbol] ?? symbol}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"

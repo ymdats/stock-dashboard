@@ -8,7 +8,7 @@ export default function Home() {
   const { symbols, addSymbol, removeSymbol } = useWatchlist();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
+    <div className="px-4 py-6 space-y-6 lg:px-6">
       <DashboardHeader stockCount={symbols.length} onAddStock={addSymbol} />
       <StockGrid symbols={symbols} onRemoveStock={removeSymbol} />
     </div>
