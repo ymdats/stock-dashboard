@@ -28,54 +28,29 @@ export function ema(data: number[], period: number): (number | null)[] {
   return result;
 }
 
-// RSI (Relative Strength Index)
+// RSI (Relative Strength Index) - Wilder's Smoothed Method
 export function rsi(closes: number[], period: number = 14): (number | null)[] {
-  const result: (number | null)[] = [];
-  const gains: number[] = [];
-  const losses: number[] = [];
+  const result: (number | null)[] = new Array(closes.length).fill(null);
+  if (closes.length < period + 1) return result;
 
-  for (let i = 0; i < closes.length; i++) {
-    if (i === 0) {
-      result.push(null);
-      continue;
-    }
-
+  let avgGain = 0;
+  let avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
     const change = closes[i] - closes[i - 1];
-    gains.push(change > 0 ? change : 0);
-    losses.push(change < 0 ? Math.abs(change) : 0);
+    if (change > 0) avgGain += change;
+    else avgLoss += Math.abs(change);
+  }
+  avgGain /= period;
+  avgLoss /= period;
+  result[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
 
-    if (i < period) {
-      result.push(null);
-      continue;
-    }
-
-    if (i === period) {
-      const avgGain = gains.slice(0, period).reduce((s, v) => s + v, 0) / period;
-      const avgLoss = losses.slice(0, period).reduce((s, v) => s + v, 0) / period;
-      if (avgLoss === 0) {
-        result.push(100);
-      } else {
-        result.push(100 - 100 / (1 + avgGain / avgLoss));
-      }
-    } else {
-      const prevRsi = result[i - 1] as number;
-      const prevAvgGain = (100 / (100 - prevRsi) - 1) * ((() => {
-        // Recalculate using smoothed method
-        const g = gains.slice(0, period).reduce((s, v) => s + v, 0) / period;
-        const l = losses.slice(0, period).reduce((s, v) => s + v, 0) / period;
-        return l === 0 ? 0 : l;
-      })());
-      // Use simplified Wilder smoothing
-      const recentGains = gains.slice(-period);
-      const recentLosses = losses.slice(-period);
-      const avgGain = recentGains.reduce((s, v) => s + v, 0) / period;
-      const avgLoss = recentLosses.reduce((s, v) => s + v, 0) / period;
-      if (avgLoss === 0) {
-        result.push(100);
-      } else {
-        result.push(100 - 100 / (1 + avgGain / avgLoss));
-      }
-    }
+  for (let i = period + 1; i < closes.length; i++) {
+    const change = closes[i] - closes[i - 1];
+    const gain = change > 0 ? change : 0;
+    const loss = change < 0 ? Math.abs(change) : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+    result[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
   }
 
   return result;
@@ -270,12 +245,14 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   const resistance = [...new Set(swHighs.slice(-3).map((h) => Math.round(h.val)))].sort((a, b) => a - b);
 
   // ========================================
-  // Data-validated verdict (30 symbols × 2y, 7d horizon, 2-round iteration)
+  // Data-validated verdict (Wilder RSI, 30 symbols × 2y, 7d horizon)
+  // Multi-agent optimization: researcher + backtester + sell-analyst
   // ========================================
-  // Buy: RSI<35 + deep below BB → 65.9% accuracy, EV +2.77%, PF 2.79
-  // Sell①: %B>0.95 + MACD histogram declining → 52.6% down, EV +1.78%
-  // Sell②: RSI>65 + %B>0.9 + MACD declining + bearish candle → 55.9% down, EV +0.58%
-  // Combined model: 416 signals, EV/trade +2.25%, total profit +937.7%
+  // Buy: RSI<35 + deep below BB → 65.0% accuracy, EV +2.56%, PF 2.60
+  // Sell①: RSI>80 + MACD histogram declining 2+ days → 66.7% down, EV +3.43%, PF 5.46
+  // Sell②: ConsecUp≥5 + RSI>80 → 71.4% down, EV +2.60%, PF 4.34
+  // Sell③: %B>0.95 + MACD histogram declining → 53.8% down, EV +1.78%, PF 2.42
+  // Combined model: 366 signals, EV/trade +2.49%, total profit +912%
   // ========================================
 
   const deepBelowBB = bbLower !== null && price <= bbLower * 0.99;
@@ -284,26 +261,46 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   const bbBandwidth = (bbUpper !== null && bbLower !== null) ? bbUpper - bbLower : 0;
   const pctB = bbBandwidth > 0 ? (price - bbLower!) / bbBandwidth : 0.5;
   const macdResult = macd(closes);
-  const latestHist = macdResult.histogram[macdResult.histogram.length - 1];
-  const prevHist = macdResult.histogram[macdResult.histogram.length - 2];
+  const hist = macdResult.histogram;
+  const latestHist = hist[hist.length - 1];
+  const prevHist = hist[hist.length - 2];
   const macdHistDeclining = latestHist !== null && prevHist !== null && latestHist < prevHist;
-  const bearishCandle = closes[closes.length - 1] < bars[bars.length - 1].open;
+
+  // MACD histogram declining for N consecutive days
+  let macdDeclDays = 0;
+  for (let i = hist.length - 1; i >= 1; i--) {
+    if (hist[i] !== null && hist[i - 1] !== null && (hist[i] as number) < (hist[i - 1] as number)) {
+      macdDeclDays++;
+    } else break;
+  }
+
+  // Consecutive up days
+  let consecUp = 0;
+  for (let i = closes.length - 1; i >= 1; i--) {
+    if (closes[i] > closes[i - 1]) consecUp++;
+    else break;
+  }
 
   let verdict: StockAnalysis['verdict'] = '様子見';
   let verdictType: StockAnalysis['verdictType'] = 'neutral';
 
-  // Buy signal: RSI<35 + deep below BB (65.9% accuracy, EV +2.77%)
+  // Buy signal: RSI<35 + deep below BB (65.0% accuracy, EV +2.56%)
   if (rsiVal !== null && rsiVal < 35 && deepBelowBB) {
     verdict = '買い検討可';
     verdictType = 'bullish';
   }
-  // Sell signal ①: %B>0.95 + MACD histogram declining (52.6% down, EV +1.78%)
-  else if (pctB > 0.95 && macdHistDeclining) {
+  // Sell signal ①: RSI>80 + MACD declining 2+ days (66.7% down, EV +3.43%)
+  else if (rsiVal !== null && rsiVal > 80 && macdDeclDays >= 2) {
     verdict = '売り検討可';
     verdictType = 'bearish';
   }
-  // Sell signal ②: RSI>65 + %B>0.9 + MACD declining + bearish candle (55.9% down, EV +0.58%)
-  else if (rsiVal !== null && rsiVal > 65 && pctB > 0.9 && macdHistDeclining && bearishCandle) {
+  // Sell signal ②: ConsecUp≥5 + RSI>80 (71.4% down, EV +2.60%)
+  else if (consecUp >= 5 && rsiVal !== null && rsiVal > 80) {
+    verdict = '売り検討可';
+    verdictType = 'bearish';
+  }
+  // Sell signal ③: %B>0.95 + MACD histogram declining (53.8% down, EV +1.78%)
+  else if (pctB > 0.95 && macdHistDeclining) {
     verdict = '売り検討可';
     verdictType = 'bearish';
   }
@@ -321,6 +318,7 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   if (rsiVal !== null) {
     if (rsiVal < 20) reasons.push({ type: 'bullish', text: `RSI=${rsiVal.toFixed(0)} 極度の売られすぎ` });
     else if (rsiVal < 35) reasons.push({ type: 'bullish', text: `RSI=${rsiVal.toFixed(0)} 売られすぎ` });
+    else if (rsiVal > 80) reasons.push({ type: 'bearish', text: `RSI=${rsiVal.toFixed(0)} 過熱` });
     else if (rsiVal > 70) reasons.push({ type: 'neutral', text: `RSI=${rsiVal.toFixed(0)} 高水準` });
     else reasons.push({ type: 'neutral', text: `RSI=${rsiVal.toFixed(0)}` });
   }
@@ -344,12 +342,14 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
 
   // Verdict explanation
   if (verdictType === 'bullish') {
-    reasons.push({ type: 'bullish', text: '→ RSI売られすぎ+BB下限突破(勝率66%,EV+2.8%)' });
+    reasons.push({ type: 'bullish', text: '→ RSI売られすぎ+BB下限突破(勝率65%,EV+2.6%)' });
   } else if (verdictType === 'bearish') {
-    if (pctB > 0.95 && macdHistDeclining) {
-      reasons.push({ type: 'bearish', text: '→ BB上限圏+MACD失速(下落率53%,EV+1.8%)' });
+    if (rsiVal !== null && rsiVal > 80 && macdDeclDays >= 2) {
+      reasons.push({ type: 'bearish', text: '→ RSI過熱+MACD連続失速(下落率67%,EV+3.4%)' });
+    } else if (consecUp >= 5 && rsiVal !== null && rsiVal > 80) {
+      reasons.push({ type: 'bearish', text: '→ 連続上昇+RSI過熱(下落率71%,EV+2.6%)' });
     } else {
-      reasons.push({ type: 'bearish', text: '→ RSI高+BB上限圏+MACD失速+陰線(下落率56%,EV+0.6%)' });
+      reasons.push({ type: 'bearish', text: '→ BB上限圏+MACD失速(下落率54%,EV+1.8%)' });
     }
   }
 
