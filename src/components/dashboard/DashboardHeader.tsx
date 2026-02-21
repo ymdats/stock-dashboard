@@ -32,7 +32,7 @@ export function DashboardHeader({
       </div>
       <div className="flex items-center gap-2">
         <Badge variant={remaining <= 5 ? 'destructive' : 'secondary'} className="font-mono tabular-nums text-xs">
-          API {remaining}/25
+          API残り {remaining}回
         </Badge>
         <AddStockDialog onAdd={onAddStock} />
         <Button
