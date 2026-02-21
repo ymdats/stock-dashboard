@@ -1,4 +1,5 @@
 import type { DailyBar, StockData, StockQuote } from '@/lib/types/stock';
+import { put } from '@vercel/blob';
 
 const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
 
@@ -77,6 +78,16 @@ export async function GET(
     };
 
     const data: StockData = { symbol, bars, quote };
+
+    // Save to Vercel Blob for server-side cache
+    try {
+      await put(`stocks/${symbol}.json`, JSON.stringify({ ...data, cachedAt: Date.now() }), {
+        access: 'public',
+        addRandomSuffix: false,
+      });
+    } catch {
+      // Blob save failure is non-critical
+    }
 
     return Response.json(data);
   } catch {
