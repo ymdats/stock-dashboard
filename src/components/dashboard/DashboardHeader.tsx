@@ -1,6 +1,6 @@
 'use client';
 
-import { Moon, Sun, TrendingUp } from 'lucide-react';
+import { Moon, Sun, TrendingUp, RefreshCw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,9 +8,11 @@ import { useApiUsage } from '@/lib/hooks/useApiUsage';
 
 interface DashboardHeaderProps {
   stockCount: number;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
-export function DashboardHeader({ stockCount }: DashboardHeaderProps) {
+export function DashboardHeader({ stockCount, onRefresh, isRefreshing }: DashboardHeaderProps) {
   const { theme, setTheme } = useTheme();
   const { remaining } = useApiUsage();
 
@@ -29,6 +31,16 @@ export function DashboardHeader({ stockCount }: DashboardHeaderProps) {
         <Badge variant={remaining <= 5 ? 'destructive' : 'secondary'} className="font-mono tabular-nums text-xs">
           API残り {remaining}回
         </Badge>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1 text-xs"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? '更新中…' : 'データ更新'}
+        </Button>
         <Button
           variant="ghost"
           size="icon"

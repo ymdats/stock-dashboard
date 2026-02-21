@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StockData } from '@/lib/types/stock';
 import { fetchStockData } from '@/lib/api/alphavantage';
 import { incrementApiUsage } from '@/lib/api/api-usage';
-import { getCachedStock, setCachedStock } from '@/lib/db/indexeddb';
+import { getCachedStock, setCachedStock, clearCachedStock } from '@/lib/db/indexeddb';
 import { isCacheStale } from '@/lib/utils/staleness';
+
+// Global event to trigger refresh across all StockCard instances
+export const REFRESH_EVENT = 'stock-refresh-all';
 
 interface UseStockDataReturn {
   data: StockData | null;
@@ -72,6 +75,16 @@ export function useStockData(symbol: string): UseStockDataReturn {
     return () => {
       mountedRef.current = false;
     };
+  }, [symbol, fetchFresh]);
+
+  // Listen for global refresh event
+  useEffect(() => {
+    const handler = async () => {
+      await clearCachedStock(symbol);
+      await fetchFresh();
+    };
+    window.addEventListener(REFRESH_EVENT, handler);
+    return () => window.removeEventListener(REFRESH_EVENT, handler);
   }, [symbol, fetchFresh]);
 
   const refresh = useCallback(async () => {
