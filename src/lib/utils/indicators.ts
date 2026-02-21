@@ -197,6 +197,12 @@ function findSwingLows(data: number[], window: number = 5): { idx: number; val: 
 }
 
 // Rules-based analysis
+export interface NextAction {
+  trigger: string;     // 条件（例: "$274を出来高増で上抜け"）
+  action: '買い' | '売り' | '様子見';
+  priority: 'high' | 'medium' | 'low';
+}
+
 export interface StockAnalysis {
   structure: string;
   verdict: '買い検討可' | '買い検討(条件付)' | '様子見' | '見送り推奨' | '見送り';
@@ -208,6 +214,7 @@ export interface StockAnalysis {
   atrTarget: number | null;
   upsidePct: number | null;
   downsideRisk: number | null;
+  nextActions: NextAction[];
 }
 
 export function analyzeStock(bars: DailyBar[]): StockAnalysis {
@@ -310,7 +317,95 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   const upsidePct = atrTarget ? ((atrTarget - price) / price) * 100 : null;
   const downsideRisk = atrStop ? ((price - atrStop) / price) * 100 : null;
 
-  return { structure, verdict, verdictType, reasons, support, resistance, atrStop, atrTarget, upsidePct, downsideRisk };
+  // Next action conditions
+  const nextActions: NextAction[] = [];
+
+  // Resistance breakout trigger
+  const nearestResistance = resistance.find((r) => r > price);
+  if (nearestResistance) {
+    nextActions.push({
+      trigger: `$${nearestResistance}を出来高増で上抜け`,
+      action: '買い',
+      priority: structure.includes('上昇') ? 'high' : 'medium',
+    });
+  }
+
+  // Support breakdown trigger
+  const nearestSupport = [...support].reverse().find((s) => s < price);
+  if (nearestSupport) {
+    nextActions.push({
+      trigger: `$${nearestSupport}を割り込み`,
+      action: '売り',
+      priority: structure.includes('下降') ? 'high' : 'medium',
+    });
+  }
+
+  // SMA cross triggers
+  const sma20vals = sma(closes, 20);
+  const sma20val = sma20vals[sma20vals.length - 1];
+  if (sma20val !== null && sma50 !== null) {
+    if (sma20val < sma50) {
+      nextActions.push({
+        trigger: `SMA20がSMA50を上抜け(ゴールデンクロス)`,
+        action: '買い',
+        priority: 'high',
+      });
+    } else if (sma20val > sma50 && (sma20val - sma50) / sma50 < 0.02) {
+      // SMA20 is barely above SMA50 - death cross risk
+      nextActions.push({
+        trigger: `SMA20がSMA50を下抜け(デッドクロス)`,
+        action: '売り',
+        priority: 'high',
+      });
+    }
+  }
+
+  // RSI extreme triggers
+  if (rsiVal !== null) {
+    if (rsiVal > 40 && rsiVal < 70) {
+      nextActions.push({
+        trigger: `RSIが70超え → 買われすぎ`,
+        action: '売り',
+        priority: 'medium',
+      });
+    }
+    if (rsiVal > 30 && rsiVal < 60) {
+      nextActions.push({
+        trigger: `RSIが30割れ → 売られすぎ反発`,
+        action: '買い',
+        priority: 'medium',
+      });
+    }
+  }
+
+  // BB bounce/break triggers
+  if (bbLower !== null && bbUpper !== null) {
+    if (price > bbLower * 1.02) {
+      nextActions.push({
+        trigger: `BB下限($${bbLower.toFixed(0)})付近で反発`,
+        action: '買い',
+        priority: 'low',
+      });
+    }
+    if (price < bbUpper * 0.98) {
+      nextActions.push({
+        trigger: `BB上限($${bbUpper.toFixed(0)})到達で利確検討`,
+        action: '売り',
+        priority: 'low',
+      });
+    }
+  }
+
+  // SMA50 reclaim (if below)
+  if (aboveSma50 === false && sma50 !== null) {
+    nextActions.push({
+      trigger: `SMA50($${sma50.toFixed(0)})を回復`,
+      action: '買い',
+      priority: 'high',
+    });
+  }
+
+  return { structure, verdict, verdictType, reasons, support, resistance, atrStop, atrTarget, upsidePct, downsideRisk, nextActions };
 }
 
 // Signal detection

@@ -75,6 +75,53 @@ export function StockAnalysisPanel({ analysis, price }: StockAnalysisPanelProps)
           )}
         </div>
       )}
+
+      {/* Next Actions */}
+      {analysis.nextActions.length > 0 && (
+        <div className="border-t border-dashed pt-1">
+          <p className="text-[9px] text-muted-foreground font-semibold mb-0.5">次のアクション条件</p>
+          <div className="space-y-0.5">
+            {analysis.nextActions
+              .sort((a, b) => {
+                const order = { high: 0, medium: 1, low: 2 };
+                return order[a.priority] - order[b.priority];
+              })
+              .slice(0, 4)
+              .map((na) => (
+                <div key={na.trigger} className="flex items-start gap-1 text-[9px]">
+                  <span
+                    className={`shrink-0 ${
+                      na.action === '買い'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : na.action === '売り'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-muted-foreground'
+                    }`}
+                  >
+                    {na.action === '買い' ? '▲' : na.action === '売り' ? '▼' : '●'}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {na.trigger}
+                    {na.priority === 'high' && (
+                      <span className="ml-0.5 text-amber-500 dark:text-amber-400">★</span>
+                    )}
+                  </span>
+                  <span
+                    className={`ml-auto shrink-0 font-medium ${
+                      na.action === '買い'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : na.action === '売り'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-muted-foreground'
+                    }`}
+                  >
+                    → {na.action}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
