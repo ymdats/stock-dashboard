@@ -284,8 +284,8 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   let verdict: StockAnalysis['verdict'] = '様子見';
   let verdictType: StockAnalysis['verdictType'] = 'neutral';
 
-  // Buy signal: RSI<35 + deep below BB (65.0% accuracy, EV +2.56%)
-  if (rsiVal !== null && rsiVal < 35 && deepBelowBB) {
+  // Buy signal: RSI<30 + deep below BB (66.9% accuracy, EV +3.10%, PF 3.05)
+  if (rsiVal !== null && rsiVal < 30 && deepBelowBB) {
     verdict = '買い検討可';
     verdictType = 'bullish';
   }
@@ -342,7 +342,7 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
 
   // Verdict explanation
   if (verdictType === 'bullish') {
-    reasons.push({ type: 'bullish', text: '→ RSI売られすぎ+BB下限突破(勝率65%,EV+2.6%)' });
+    reasons.push({ type: 'bullish', text: '→ RSI売られすぎ+BB下限突破(勝率67%,EV+3.1%)' });
   } else if (verdictType === 'bearish') {
     if (rsiVal !== null && rsiVal > 80 && macdDeclDays >= 2) {
       reasons.push({ type: 'bearish', text: '→ RSI過熱+MACD連続失速(下落率67%,EV+3.4%)' });
