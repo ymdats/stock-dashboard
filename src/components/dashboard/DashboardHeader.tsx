@@ -32,9 +32,9 @@ export function DashboardHeader({ stockCount, onRefresh, isRefreshing }: Dashboa
           API残り {remaining}回
         </Badge>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-8 gap-1 text-xs"
+          className="h-8 gap-1.5 text-xs"
           onClick={onRefresh}
           disabled={isRefreshing}
         >
