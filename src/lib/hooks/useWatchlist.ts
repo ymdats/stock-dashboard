@@ -12,36 +12,27 @@ export function useWatchlist() {
     if (typeof window === 'undefined') return;
 
     const stored = localStorage.getItem(STORAGE_KEY);
+    let list: string[] = [];
+
     if (stored) {
       try {
-        setSymbols(JSON.parse(stored));
+        list = JSON.parse(stored);
       } catch {
-        setSymbols([...DEFAULT_SYMBOLS]);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SYMBOLS));
+        list = [];
       }
-    } else {
-      setSymbols([...DEFAULT_SYMBOLS]);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SYMBOLS));
     }
-  }, []);
 
-  const persist = useCallback((next: string[]) => {
-    setSymbols(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }, []);
+    // Merge: ensure all DEFAULT_SYMBOLS are included
+    const merged = [...list];
+    for (const sym of DEFAULT_SYMBOLS) {
+      if (!merged.includes(sym)) {
+        merged.push(sym);
+      }
+    }
 
-  const addSymbol = useCallback(
-    (sym: string) => {
-      const upper = sym.toUpperCase();
-      setSymbols((prev) => {
-        if (prev.includes(upper)) return prev;
-        const next = [...prev, upper];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        return next;
-      });
-    },
-    [],
-  );
+    setSymbols(merged);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+  }, []);
 
   const removeSymbol = useCallback(
     (sym: string) => {
@@ -55,5 +46,5 @@ export function useWatchlist() {
     [],
   );
 
-  return { symbols, addSymbol, removeSymbol };
+  return { symbols, removeSymbol };
 }
