@@ -24,7 +24,7 @@ export async function GET(
     );
   }
 
-  const url = `${ALPHA_VANTAGE_BASE}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=compact&apikey=${apiKey}`;
+  const url = `${ALPHA_VANTAGE_BASE}?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=compact&apikey=${apiKey}`;
 
   try {
     const res = await fetch(url);
@@ -57,7 +57,7 @@ export async function GET(
         high: parseFloat(values['2. high']),
         low: parseFloat(values['3. low']),
         close: parseFloat(values['4. close']),
-        volume: parseInt(values['6. volume'], 10),
+        volume: parseInt(values['5. volume'], 10),
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-90);
