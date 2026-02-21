@@ -3,7 +3,9 @@
 import { RotateCw, X } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useStockData } from '@/lib/hooks/useStockData';
+import { detectSignals } from '@/lib/utils/indicators';
 import { StockKPI } from './StockKPI';
 import { StockChart } from './StockChart';
 import { StockChartSkeleton } from './StockChartSkeleton';
@@ -27,6 +29,8 @@ function formatTimeAgo(date: Date): string {
 export function StockCard({ symbol, onRemove }: StockCardProps) {
   const { data, isLoading, error, lastFetched, refresh } =
     useStockData(symbol);
+
+  const signals = data ? detectSignals(data.bars) : [];
 
   return (
     <Card className="overflow-hidden">
@@ -64,6 +68,30 @@ export function StockCard({ symbol, onRemove }: StockCardProps) {
         {data && (
           <>
             <StockKPI quote={data.quote} />
+
+            {/* Signal Badges */}
+            {signals.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {signals.map((signal) => (
+                  <Badge
+                    key={signal.label}
+                    variant={signal.type === 'neutral' ? 'secondary' : 'outline'}
+                    className={`text-[10px] font-medium ${
+                      signal.type === 'bullish'
+                        ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
+                        : signal.type === 'bearish'
+                          ? 'border-red-500/50 text-red-600 dark:text-red-400'
+                          : ''
+                    }`}
+                    title={signal.description}
+                  >
+                    {signal.type === 'bullish' ? '▲ ' : signal.type === 'bearish' ? '▼ ' : ''}
+                    {signal.label}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
             <StockChart data={data.bars} symbol={symbol} />
           </>
         )}
