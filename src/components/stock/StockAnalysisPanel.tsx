@@ -8,23 +8,44 @@ interface StockAnalysisPanelProps {
   price: number;
 }
 
+// Score-based color gradient: -100 (red) → 0 (gray) → +100 (green)
+function getScoreStyle(score: number): { bg: string; text: string; border: string } {
+  const abs = Math.abs(score);
+  if (score >= 40) return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-700' };
+  if (score >= 25) return { bg: 'bg-emerald-500/70', text: 'text-white', border: 'border-emerald-600' };
+  if (score >= 15) return { bg: 'bg-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-500/40' };
+  if (score >= 5)  return { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/25' };
+  if (score > -5)  return { bg: 'bg-muted/50', text: 'text-muted-foreground', border: 'border-border' };
+  if (score > -15) return { bg: 'bg-red-500/15', text: 'text-red-600 dark:text-red-400', border: 'border-red-500/25' };
+  if (score > -25) return { bg: 'bg-red-500/30', text: 'text-red-700 dark:text-red-300', border: 'border-red-500/40' };
+  if (score > -40) return { bg: 'bg-red-500/70', text: 'text-white', border: 'border-red-600' };
+  return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700' };
+}
+
 export function StockAnalysisPanel({ analysis }: StockAnalysisPanelProps) {
-  const verdictColor =
-    analysis.verdictType === 'bullish'
-      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-      : analysis.verdictType === 'bearish'
-        ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30'
-        : 'text-muted-foreground bg-muted/50 border-border';
+  const style = getScoreStyle(analysis.score);
+  const evPrefix = analysis.expectedValue >= 0 ? '+' : '';
 
   return (
     <div className="border-t pt-1.5 space-y-1">
-      {/* Verdict + Structure */}
+      {/* Score badge + verdict + WR/EV */}
       <div className="flex items-center justify-between gap-2">
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${verdictColor}`}>
-          {analysis.verdict}
-        </span>
-        <span className="text-xs text-muted-foreground font-mono">
-          構造: {analysis.structure}
+        <div className="flex items-center gap-1.5">
+          <span className={`text-xs font-bold px-2 py-0.5 rounded border ${style.bg} ${style.text} ${style.border}`}>
+            {analysis.verdict}
+          </span>
+          <span className={`text-[11px] font-mono tabular-nums ${
+            analysis.score > 0
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : analysis.score < 0
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-muted-foreground'
+          }`}>
+            勝率{analysis.winRate}% / {evPrefix}{analysis.expectedValue}%
+          </span>
+        </div>
+        <span className="text-[11px] text-muted-foreground font-mono tabular-nums">
+          score {analysis.score > 0 ? '+' : ''}{analysis.score.toFixed(0)}
         </span>
       </div>
 

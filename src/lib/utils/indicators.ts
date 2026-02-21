@@ -148,6 +148,53 @@ function calcAtr(bars: DailyBar[], period: number = 14): number | null {
   return trs.slice(-period).reduce((s, v) => s + v, 0) / period;
 }
 
+// ADX (Average Directional Index) - simplified, returns latest value
+function calcAdx(bars: DailyBar[], period: number = 14): number | null {
+  if (bars.length < period * 2 + 1) return null;
+
+  const plusDm: number[] = [];
+  const minusDm: number[] = [];
+  const trList: number[] = [];
+
+  for (let i = 1; i < bars.length; i++) {
+    const up = bars[i].high - bars[i - 1].high;
+    const down = bars[i - 1].low - bars[i].low;
+    plusDm.push(up > down && up > 0 ? up : 0);
+    minusDm.push(down > up && down > 0 ? down : 0);
+    trList.push(Math.max(
+      bars[i].high - bars[i].low,
+      Math.abs(bars[i].high - bars[i - 1].close),
+      Math.abs(bars[i].low - bars[i - 1].close),
+    ));
+  }
+
+  let atrS = trList.slice(0, period).reduce((s, v) => s + v, 0) / period;
+  let pdmS = plusDm.slice(0, period).reduce((s, v) => s + v, 0) / period;
+  let mdmS = minusDm.slice(0, period).reduce((s, v) => s + v, 0) / period;
+
+  const dxList: number[] = [];
+  for (let i = period; i < trList.length; i++) {
+    atrS = (atrS * (period - 1) + trList[i]) / period;
+    pdmS = (pdmS * (period - 1) + plusDm[i]) / period;
+    mdmS = (mdmS * (period - 1) + minusDm[i]) / period;
+
+    if (atrS > 0) {
+      const pdi = (pdmS / atrS) * 100;
+      const mdi = (mdmS / atrS) * 100;
+      if (pdi + mdi > 0) {
+        dxList.push(Math.abs(pdi - mdi) / (pdi + mdi) * 100);
+      }
+    }
+  }
+
+  if (dxList.length < period) return null;
+  let adxVal = dxList.slice(0, period).reduce((s, v) => s + v, 0) / period;
+  for (let k = period; k < dxList.length; k++) {
+    adxVal = (adxVal * (period - 1) + dxList[k]) / period;
+  }
+  return adxVal;
+}
+
 // Swing point detection
 function findSwingHighs(data: number[], window: number = 5): { idx: number; val: number }[] {
   const result: { idx: number; val: number }[] = [];
@@ -178,10 +225,34 @@ export interface NextAction {
   priority: 'high' | 'medium' | 'low';
 }
 
+// Continuous score: -100 (strong sell) to +100 (strong buy)
+// Backtested score-band stats (30 symbols × 2yr, 7d forward):
+//   +40~: WR 67%, EV +2.6%  |  +25~40: WR 56%, EV +1.3%
+//   +15~25: WR 56%, EV +0.9% |  -15~+15: WR 53%, EV +0.6%
+//   -40~-15: WR 51%, EV +0.4% |  ~-40: WR 48%, EV -0.1%
+const SCORE_BANDS: { min: number; winRate: number; ev: number }[] = [
+  { min: 40, winRate: 67, ev: 2.6 },
+  { min: 25, winRate: 56, ev: 1.3 },
+  { min: 15, winRate: 56, ev: 0.9 },
+  { min: -15, winRate: 53, ev: 0.6 },
+  { min: -40, winRate: 51, ev: 0.4 },
+  { min: -Infinity, winRate: 48, ev: -0.1 },
+];
+
+function getScoreBand(score: number): { winRate: number; ev: number } {
+  for (const band of SCORE_BANDS) {
+    if (score >= band.min) return { winRate: band.winRate, ev: band.ev };
+  }
+  return SCORE_BANDS[SCORE_BANDS.length - 1];
+}
+
 export interface StockAnalysis {
   structure: string;
-  verdict: '買い検討可' | '売り検討可' | '様子見';
+  score: number; // -100 (sell) ~ +100 (buy)
+  verdict: string;
   verdictType: 'bullish' | 'bearish' | 'neutral';
+  winRate: number;
+  expectedValue: number;
   reasons: { type: 'bullish' | 'bearish' | 'neutral'; text: string }[];
   support: number[];
   resistance: number[];
@@ -245,113 +316,115 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   const resistance = [...new Set(swHighs.slice(-3).map((h) => Math.round(h.val)))].sort((a, b) => a - b);
 
   // ========================================
-  // Data-validated verdict (Wilder RSI, 30 symbols × 2y, 7d horizon)
-  // Multi-agent optimization: researcher + backtester + sell-analyst
-  // ========================================
-  // Buy: RSI<35 + deep below BB → 65.0% accuracy, EV +2.56%, PF 2.60
-  // Sell①: RSI>80 + MACD histogram declining 2+ days → 66.7% down, EV +3.43%, PF 5.46
-  // Sell②: ConsecUp≥5 + RSI>80 → 71.4% down, EV +2.60%, PF 4.34
-  // Sell③: %B>0.95 + MACD histogram declining → 53.8% down, EV +1.78%, PF 2.42
-  // Combined model: 366 signals, EV/trade +2.49%, total profit +912%
+  // Continuous scoring: -100 (sell) ~ +100 (buy)
+  // Backtested on 30 symbols × 2yr, 7d forward returns
+  // Score = weighted(RSI 35% + BB 25% + MACD 20% + vol/ADX 20%)
   // ========================================
 
-  const deepBelowBB = bbLower !== null && price <= bbLower * 0.99;
-
-  // Sell signal features
-  const bbBandwidth = (bbUpper !== null && bbLower !== null) ? bbUpper - bbLower : 0;
-  const pctB = bbBandwidth > 0 ? (price - bbLower!) / bbBandwidth : 0.5;
+  const adxVal = calcAdx(bars);
   const macdResult = macd(closes);
   const hist = macdResult.histogram;
-  const latestHist = hist[hist.length - 1];
-  const prevHist = hist[hist.length - 2];
-  const macdHistDeclining = latestHist !== null && prevHist !== null && latestHist < prevHist;
 
-  // MACD histogram declining for N consecutive days
+  // MACD histogram declining days
   let macdDeclDays = 0;
   for (let i = hist.length - 1; i >= 1; i--) {
     if (hist[i] !== null && hist[i - 1] !== null && (hist[i] as number) < (hist[i - 1] as number)) {
       macdDeclDays++;
     } else break;
   }
-
-  // Consecutive up days
-  let consecUp = 0;
-  for (let i = closes.length - 1; i >= 1; i--) {
-    if (closes[i] > closes[i - 1]) consecUp++;
-    else break;
+  // MACD histogram rising days
+  let macdRiseDays = 0;
+  for (let i = hist.length - 1; i >= 1; i--) {
+    if (hist[i] !== null && hist[i - 1] !== null && (hist[i] as number) > (hist[i - 1] as number)) {
+      macdRiseDays++;
+    } else break;
   }
 
-  let verdict: StockAnalysis['verdict'] = '様子見';
-  let verdictType: StockAnalysis['verdictType'] = 'neutral';
+  // --- Score calculation ---
+  let score = 0;
 
-  // Buy signal: RSI<30 + deep below BB (66.9% accuracy, EV +3.10%, PF 3.05)
-  if (rsiVal !== null && rsiVal < 30 && deepBelowBB) {
-    verdict = '買い検討可';
-    verdictType = 'bullish';
-  }
-  // Sell signal ①: RSI>80 + MACD declining 2+ days (66.7% down, EV +3.43%)
-  else if (rsiVal !== null && rsiVal > 80 && macdDeclDays >= 2) {
-    verdict = '売り検討可';
-    verdictType = 'bearish';
-  }
-  // Sell signal ②: ConsecUp≥5 + RSI>80 (71.4% down, EV +2.60%)
-  else if (consecUp >= 5 && rsiVal !== null && rsiVal > 80) {
-    verdict = '売り検討可';
-    verdictType = 'bearish';
-  }
-  // Sell signal ③: %B>0.95 + MACD histogram declining (53.8% down, EV +1.78%)
-  else if (pctB > 0.95 && macdHistDeclining) {
-    verdict = '売り検討可';
-    verdictType = 'bearish';
+  // 1. RSI component (35%): RSI 50 = neutral, <30 = buy, >70 = sell
+  if (rsiVal !== null) {
+    score += (50 - rsiVal) * 2 * 0.35;
   }
 
-  // Context reasons (informational, not used for verdict)
+  // 2. BB position (25%): below mid = buy, above = sell
+  const bbMid = bb.middle[bb.middle.length - 1];
+  if (bbLower !== null && bbUpper !== null && bbMid !== null) {
+    const bbWidth = bbUpper - bbLower;
+    if (bbWidth > 0) {
+      const bbPos = (price - bbMid) / (bbWidth / 2); // ~-1 to +1
+      score += -bbPos * 50 * 0.25;
+    }
+  }
+
+  // 3. MACD momentum (20%): declining = sell, rising = buy
+  if (macdDeclDays > 0) {
+    score += -Math.min(macdDeclDays * 15, 50) * 0.20;
+  } else if (macdRiseDays > 0) {
+    score += Math.min(macdRiseDays * 15, 50) * 0.20;
+  }
+
+  // 4. Volume + ADX (20%): confirms direction
+  if (rsiVal !== null) {
+    if (volRatio < 0.8 && rsiVal > 70) score -= 10 * 0.20; // exhaustion sell
+    if (volRatio > 1.2 && rsiVal < 35) score += 15 * 0.20; // capitulation buy
+  }
+  if (adxVal !== null && adxVal > 25) {
+    score *= 1 + (adxVal - 25) / 100; // amplify in strong trend
+  }
+
+  // Clamp
+  score = Math.max(-100, Math.min(100, score));
+
+  // Derive verdict from score
+  const band = getScoreBand(score);
+  let verdict: string;
+  let verdictType: StockAnalysis['verdictType'];
+  if (score >= 40) { verdict = '強い買い'; verdictType = 'bullish'; }
+  else if (score >= 20) { verdict = '買い'; verdictType = 'bullish'; }
+  else if (score >= 5) { verdict = 'やや買い'; verdictType = 'bullish'; }
+  else if (score > -5) { verdict = '中立'; verdictType = 'neutral'; }
+  else if (score > -20) { verdict = 'やや売り'; verdictType = 'bearish'; }
+  else if (score > -40) { verdict = '売り'; verdictType = 'bearish'; }
+  else { verdict = '強い売り'; verdictType = 'bearish'; }
+
+  const winRate = band.winRate;
+  const expectedValue = band.ev;
+
+  // Context reasons
   const reasons: { type: 'bullish' | 'bearish' | 'neutral'; text: string }[] = [];
 
-  if (structure.includes('上昇')) reasons.push({ type: 'bullish', text: `価格構造: ${structure}` });
-  else if (structure.includes('下降')) reasons.push({ type: 'bearish', text: `価格構造: ${structure}` });
-  else reasons.push({ type: 'neutral', text: `価格構造: ${structure}` });
+  if (structure.includes('上昇')) reasons.push({ type: 'bullish', text: `構造: ${structure}` });
+  else if (structure.includes('下降')) reasons.push({ type: 'bearish', text: `構造: ${structure}` });
+  else reasons.push({ type: 'neutral', text: `構造: ${structure}` });
 
   if (aboveSma50 === true) reasons.push({ type: 'bullish', text: `SMA50($${sma50!.toFixed(0)})上` });
   else if (aboveSma50 === false) reasons.push({ type: 'bearish', text: `SMA50($${sma50!.toFixed(0)})下` });
 
   if (rsiVal !== null) {
-    if (rsiVal < 20) reasons.push({ type: 'bullish', text: `RSI=${rsiVal.toFixed(0)} 極度の売られすぎ` });
-    else if (rsiVal < 35) reasons.push({ type: 'bullish', text: `RSI=${rsiVal.toFixed(0)} 売られすぎ` });
-    else if (rsiVal > 80) reasons.push({ type: 'bearish', text: `RSI=${rsiVal.toFixed(0)} 過熱` });
-    else if (rsiVal > 70) reasons.push({ type: 'neutral', text: `RSI=${rsiVal.toFixed(0)} 高水準` });
-    else reasons.push({ type: 'neutral', text: `RSI=${rsiVal.toFixed(0)}` });
+    const rsiType = rsiVal < 35 ? 'bullish' : rsiVal > 70 ? 'bearish' : 'neutral';
+    const rsiLabel = rsiVal < 20 ? '極度の売られすぎ' : rsiVal < 35 ? '売られすぎ' : rsiVal > 80 ? '過熱' : rsiVal > 70 ? '高水準' : '';
+    reasons.push({ type: rsiType, text: `RSI=${rsiVal.toFixed(0)}${rsiLabel ? ' ' + rsiLabel : ''}` });
   }
 
   if (volRatio > 1.5) {
     const dir = closes[closes.length - 1] > closes[closes.length - 2] ? '陽線' : '陰線';
-    reasons.push({ type: 'neutral', text: `出来高${(volRatio).toFixed(1)}倍+${dir}` });
+    reasons.push({ type: 'neutral', text: `出来高${volRatio.toFixed(1)}倍+${dir}` });
   }
 
-  if (deepBelowBB) {
-    reasons.push({ type: 'bullish', text: `BB下限を大幅に下抜け → 反発ゾーン` });
-  } else if (bbLower !== null && price <= bbLower * 1.01) {
-    reasons.push({ type: 'bullish', text: `BB下限付近 → 反発候補` });
+  if (bbLower !== null && price <= bbLower * 1.01) {
+    reasons.push({ type: 'bullish', text: 'BB下限付近' });
   } else if (bbUpper !== null && price >= bbUpper * 0.99) {
-    reasons.push({ type: 'neutral', text: `BB上限付近` });
+    reasons.push({ type: 'bearish', text: 'BB上限付近' });
   }
 
-  if (fromHigh < -15) {
-    reasons.push({ type: 'neutral', text: `高値から${fromHigh.toFixed(0)}%下落` });
-  }
+  if (macdDeclDays >= 2) reasons.push({ type: 'bearish', text: `MACD ${macdDeclDays}日連続↓` });
+  else if (macdRiseDays >= 2) reasons.push({ type: 'bullish', text: `MACD ${macdRiseDays}日連続↑` });
 
-  // Verdict explanation
-  if (verdictType === 'bullish') {
-    reasons.push({ type: 'bullish', text: '→ RSI売られすぎ+BB下限突破(勝率67%,EV+3.1%)' });
-  } else if (verdictType === 'bearish') {
-    if (rsiVal !== null && rsiVal > 80 && macdDeclDays >= 2) {
-      reasons.push({ type: 'bearish', text: '→ RSI過熱+MACD連続失速(下落率67%,EV+3.4%)' });
-    } else if (consecUp >= 5 && rsiVal !== null && rsiVal > 80) {
-      reasons.push({ type: 'bearish', text: '→ 連続上昇+RSI過熱(下落率71%,EV+2.6%)' });
-    } else {
-      reasons.push({ type: 'bearish', text: '→ BB上限圏+MACD失速(下落率54%,EV+1.8%)' });
-    }
-  }
+  if (adxVal !== null && adxVal > 25) reasons.push({ type: 'neutral', text: `ADX=${adxVal.toFixed(0)} トレンド強` });
+
+  if (fromHigh < -15) reasons.push({ type: 'neutral', text: `高値から${fromHigh.toFixed(0)}%` });
 
   const atrStop = atr ? price - atr * 2 : null;
   const atrTarget = atr ? price + atr * 3 : null;
@@ -360,7 +433,7 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
 
   const nextActions: NextAction[] = [];
 
-  return { structure, verdict, verdictType, reasons, support, resistance, atrStop, atrTarget, upsidePct, downsideRisk, nextActions };
+  return { structure, score, verdict, verdictType, winRate, expectedValue, reasons, support, resistance, atrStop, atrTarget, upsidePct, downsideRisk, nextActions };
 }
 
 // Signal detection
