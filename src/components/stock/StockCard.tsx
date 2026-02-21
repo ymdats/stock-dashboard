@@ -39,20 +39,20 @@ export function StockCard({ symbol }: StockCardProps) {
 
   return (
     <Card className="overflow-hidden flex flex-col h-full">
-      <CardHeader className="flex flex-row items-center justify-between px-4 py-2.5 shrink-0">
-        <div className="flex items-baseline gap-2 min-w-0">
-          <span className="font-mono font-semibold text-base">{symbol}</span>
-          <span className="text-xs text-muted-foreground truncate">
+      <CardHeader className="flex flex-row items-center justify-between px-4 py-1.5 shrink-0">
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <span className="font-mono font-semibold text-sm">{symbol}</span>
+          <span className="text-[11px] text-muted-foreground truncate">
             {STOCK_NAMES[symbol] ?? symbol}
           </span>
         </div>
         {lastFetched && (
-          <span className="text-xs text-muted-foreground shrink-0">
+          <span className="text-[11px] text-muted-foreground shrink-0">
             {formatTimeAgo(lastFetched)}
           </span>
         )}
       </CardHeader>
-      <CardContent className="px-4 pb-3 pt-0 flex-1 flex flex-col min-h-0 gap-1.5">
+      <CardContent className="px-4 pb-3 pt-0 flex-1 flex flex-col min-h-0 gap-1">
         {error && (
           <p className="text-sm text-red-500">{error}</p>
         )}

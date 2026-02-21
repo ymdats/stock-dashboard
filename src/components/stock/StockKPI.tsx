@@ -12,11 +12,11 @@ export function StockKPI({ quote }: StockKPIProps) {
   const colorClass = isPositive ? 'text-emerald-500' : 'text-red-500';
 
   return (
-    <div className="flex items-baseline gap-2">
-      <span className="font-mono text-xl font-bold tabular-nums">
+    <div className="flex items-baseline gap-1.5">
+      <span className="font-mono text-base font-bold tabular-nums">
         {formatPrice(quote.price)}
       </span>
-      <span className={`font-mono text-sm tabular-nums ${colorClass}`}>
+      <span className={`font-mono text-xs tabular-nums ${colorClass}`}>
         {formatChange(quote.change)} ({formatPercent(quote.changePercent)})
       </span>
     </div>
