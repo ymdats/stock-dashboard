@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "alphavantage": {
+      "type": "http",
+      "url": "https://mcp.alphavantage.co/mcp?apikey=X93FF4HYKR7VYRBM"
+    },
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com"
+    }
+  }
+}
