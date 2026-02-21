@@ -5,12 +5,12 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { StockGrid } from '@/components/dashboard/StockGrid';
 
 export default function Home() {
-  const { symbols, removeSymbol } = useWatchlist();
+  const { symbols } = useWatchlist();
 
   return (
     <div className="px-4 py-4 space-y-4 lg:px-6">
       <DashboardHeader stockCount={symbols.length} />
-      <StockGrid symbols={symbols} onRemoveStock={removeSymbol} />
+      <StockGrid symbols={symbols} />
     </div>
   );
 }

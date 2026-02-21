@@ -1,8 +1,6 @@
 'use client';
 
-import { RotateCw, X } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
@@ -18,7 +16,6 @@ import { StockChartSkeleton } from './StockChartSkeleton';
 
 interface StockCardProps {
   symbol: string;
-  onRemove: (symbol: string) => void;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -32,8 +29,8 @@ function formatTimeAgo(date: Date): string {
   return `${days}日前`;
 }
 
-export function StockCard({ symbol, onRemove }: StockCardProps) {
-  const { data, isLoading, error, lastFetched, refresh } =
+export function StockCard({ symbol }: StockCardProps) {
+  const { data, isLoading, error, lastFetched } =
     useStockData(symbol);
 
   const signals = data ? detectSignals(data.bars) : [];
@@ -47,30 +44,11 @@ export function StockCard({ symbol, onRemove }: StockCardProps) {
             {STOCK_NAMES[symbol] ?? symbol}
           </span>
         </div>
-        <div className="flex items-center gap-0.5 shrink-0">
-          {lastFetched && (
-            <span className="text-[10px] text-muted-foreground mr-1">
-              {formatTimeAgo(lastFetched)}
-            </span>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => refresh()}
-            disabled={isLoading}
-          >
-            <RotateCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => onRemove(symbol)}
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
+        {lastFetched && (
+          <span className="text-[10px] text-muted-foreground shrink-0">
+            {formatTimeAgo(lastFetched)}
+          </span>
+        )}
       </CardHeader>
       <CardContent className="px-3 pb-2 pt-0 space-y-1">
         {error && (
