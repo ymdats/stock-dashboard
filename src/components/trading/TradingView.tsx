@@ -9,12 +9,13 @@ interface TradingViewProps {
   activeTrades: ActivePosition[];
   completedTrades: Trade[];
   onSell: (tradeId: string, sellPrice: number) => Promise<void>;
+  onCancel: (tradeId: string) => Promise<void>;
 }
 
-export function TradingView({ activeTrades, completedTrades, onSell }: TradingViewProps) {
+export function TradingView({ activeTrades, completedTrades, onSell, onCancel }: TradingViewProps) {
   return (
     <div className="h-full flex flex-col gap-4 overflow-auto">
-      <ActivePositions positions={activeTrades} onSell={onSell} />
+      <ActivePositions positions={activeTrades} onSell={onSell} onCancel={onCancel} />
       <PnlChart trades={completedTrades} />
       <TradeHistory trades={completedTrades} />
     </div>

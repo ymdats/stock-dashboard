@@ -14,6 +14,7 @@ import type { ActivePosition } from '@/lib/types/trade';
 interface ActivePositionsProps {
   positions: ActivePosition[];
   onSell: (tradeId: string, sellPrice: number) => Promise<void>;
+  onCancel: (tradeId: string) => Promise<void>;
 }
 
 function SellDialog({
@@ -82,7 +83,7 @@ function SellDialog({
   );
 }
 
-export function ActivePositions({ positions, onSell }: ActivePositionsProps) {
+export function ActivePositions({ positions, onSell, onCancel }: ActivePositionsProps) {
   if (positions.length === 0) {
     return (
       <Card>
@@ -130,7 +131,13 @@ export function ActivePositions({ positions, onSell }: ActivePositionsProps) {
                     )}
                   </td>
                   <td className="text-right px-4 py-2">
-                    <SellDialog position={p} onSell={onSell} />
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
+                        onClick={() => onCancel(p.id)}>
+                        取消
+                      </Button>
+                      <SellDialog position={p} onSell={onSell} />
+                    </div>
                   </td>
                 </tr>
               ))}

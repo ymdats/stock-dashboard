@@ -27,6 +27,7 @@ interface StockCardProps {
   activeTrade?: ActivePosition;
   onBuy?: (symbol: string, price: number, score: number) => Promise<void>;
   onSell?: (tradeId: string, sellPrice: number) => Promise<void>;
+  onCancel?: (tradeId: string) => Promise<void>;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -142,7 +143,7 @@ function CardSellDialog({ position, currentPrice, onSell }: {
   );
 }
 
-export function StockCard({ symbol, activeTrade, onBuy, onSell }: StockCardProps) {
+export function StockCard({ symbol, activeTrade, onBuy, onSell, onCancel }: StockCardProps) {
   const { data, isLoading, error, lastFetched } =
     useStockData(symbol);
 
@@ -233,11 +234,17 @@ export function StockCard({ symbol, activeTrade, onBuy, onSell }: StockCardProps
                       保有中 {activeTrade.daysHeld}日
                     </Badge>
                   )}
-                  {onSell && (
-                    <div className="ml-auto">
+                  <div className="flex items-center gap-1 ml-auto">
+                    {onCancel && (
+                      <Button variant="ghost" size="sm" className="h-6 text-[11px] px-2 text-muted-foreground"
+                        onClick={() => onCancel(activeTrade.id)}>
+                        取消
+                      </Button>
+                    )}
+                    {onSell && (
                       <CardSellDialog position={activeTrade} currentPrice={data.quote.price} onSell={onSell} />
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </>
               ) : (
                 onBuy && analysis && (

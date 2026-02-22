@@ -8,9 +8,10 @@ interface StockGridProps {
   activeTrades?: ActivePosition[];
   onBuy?: (symbol: string, price: number, score: number) => Promise<void>;
   onSell?: (tradeId: string, sellPrice: number) => Promise<void>;
+  onCancel?: (tradeId: string) => Promise<void>;
 }
 
-export function StockGrid({ symbols, activeTrades, onBuy, onSell }: StockGridProps) {
+export function StockGrid({ symbols, activeTrades, onBuy, onSell, onCancel }: StockGridProps) {
   return (
     <div className="h-full grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 xl:grid-rows-2 auto-rows-fr">
       {symbols.map((symbol) => (
@@ -20,6 +21,7 @@ export function StockGrid({ symbols, activeTrades, onBuy, onSell }: StockGridPro
           activeTrade={activeTrades?.find((t) => t.symbol === symbol)}
           onBuy={onBuy}
           onSell={onSell}
+          onCancel={onCancel}
         />
       ))}
     </div>

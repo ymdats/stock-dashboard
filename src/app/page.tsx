@@ -14,7 +14,7 @@ export default function Home() {
   const [view, setView] = useState<View>('dashboard');
   const { symbols } = useWatchlist();
   const { progress, refresh } = useRefreshAll(symbols);
-  const { activeTrades, completedTrades, recordBuy, recordSell } = useTrades();
+  const { activeTrades, completedTrades, recordBuy, recordSell, cancelTrade } = useTrades();
 
   return (
     <div className="h-dvh flex flex-col px-4 py-3 lg:px-6">
@@ -33,12 +33,14 @@ export default function Home() {
             activeTrades={activeTrades}
             onBuy={recordBuy}
             onSell={recordSell}
+            onCancel={cancelTrade}
           />
         ) : (
           <TradingView
             activeTrades={activeTrades}
             completedTrades={completedTrades}
             onSell={recordSell}
+            onCancel={cancelTrade}
           />
         )}
       </div>

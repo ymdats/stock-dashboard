@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import type { Trade, TradeStore, ActivePosition } from '@/lib/types/trade';
-import { USD_JPY_RATE, TRADE_AMOUNT_JPY, SELL_DUE_DAYS } from '@/lib/types/trade';
+import { TRADE_AMOUNT_JPY, SELL_DUE_DAYS } from '@/lib/types/trade';
 
 function toActivePosition(t: Trade): ActivePosition {
   const daysHeld = Math.floor(
@@ -39,7 +39,12 @@ export function useTrades() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(next),
     });
-    if (!res.ok) throw new Error('Save failed');
+    if (!res.ok) {
+      // Revert local state on failure
+      setStore(storeRef.current);
+      const detail = await res.text().catch(() => '');
+      throw new Error(`${res.status} ${detail}`);
+    }
   }, []);
 
   const recordBuy = useCallback(
@@ -60,8 +65,8 @@ export function useTrades() {
       try {
         await persist(next);
         toast.success(`${symbol} ¥${TRADE_AMOUNT_JPY.toLocaleString()}分 購入記録`);
-      } catch {
-        toast.error('保存に失敗しました');
+      } catch (e) {
+        toast.error(`保存に失敗: ${e instanceof Error ? e.message : String(e)}`);
       }
     },
     [persist],
@@ -85,13 +90,32 @@ export function useTrades() {
       const next: TradeStore = { ...storeRef.current, trades };
       try {
         await persist(next);
-        const sold = trades.find((t) => t.id === tradeId)!;
-        const sign = (sold.pnlJpy ?? 0) >= 0 ? '+' : '';
-        toast.success(
-          `${sold.symbol} 売却 ${sign}¥${(sold.pnlJpy ?? 0).toLocaleString()} (${sign}${sold.pnlPercent}%)`,
-        );
-      } catch {
-        toast.error('保存に失敗しました');
+        const sold = trades.find((t) => t.id === tradeId);
+        if (sold) {
+          const sign = (sold.pnlJpy ?? 0) >= 0 ? '+' : '';
+          toast.success(
+            `${sold.symbol} 売却 ${sign}¥${(sold.pnlJpy ?? 0).toLocaleString()} (${sign}${sold.pnlPercent ?? 0}%)`,
+          );
+        }
+      } catch (e) {
+        toast.error(`保存に失敗: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+    [persist],
+  );
+
+  const cancelTrade = useCallback(
+    async (tradeId: string) => {
+      const trade = storeRef.current.trades.find((t) => t.id === tradeId);
+      const next: TradeStore = {
+        ...storeRef.current,
+        trades: storeRef.current.trades.filter((t) => t.id !== tradeId),
+      };
+      try {
+        await persist(next);
+        toast.success(`${trade?.symbol ?? ''} 取引を取消しました`);
+      } catch (e) {
+        toast.error(`取消に失敗: ${e instanceof Error ? e.message : String(e)}`);
       }
     },
     [persist],
@@ -105,5 +129,5 @@ export function useTrades() {
     .filter((t) => t.status === 'completed')
     .sort((a, b) => (b.sellDate ?? '').localeCompare(a.sellDate ?? ''));
 
-  return { activeTrades, completedTrades, isLoading, recordBuy, recordSell };
+  return { activeTrades, completedTrades, isLoading, recordBuy, recordSell, cancelTrade };
 }
