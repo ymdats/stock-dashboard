@@ -1,5 +1,6 @@
 import type { DailyBar, StockData, StockQuote } from '@/lib/types/stock';
 import { put } from '@vercel/blob';
+import { adjustForSplits } from '@/lib/utils/split-adjust';
 
 const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
 
@@ -51,7 +52,7 @@ export async function GET(
 
     // Transform to DailyBar[], sort oldest-first, take last 90 trading days
     const entries = timeSeries as Record<string, Record<string, string>>;
-    const bars: DailyBar[] = Object.entries(entries)
+    const rawBars: DailyBar[] = Object.entries(entries)
       .map(([date, values]) => ({
         date,
         open: parseFloat(values['1. open']),
@@ -62,6 +63,7 @@ export async function GET(
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-90);
+    const bars = adjustForSplits(rawBars);
 
     // Calculate quote from last 2 days
     const latest = bars[bars.length - 1];

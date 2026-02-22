@@ -1,6 +1,7 @@
 import type { DailyBar, StockData, StockQuote } from '@/lib/types/stock';
 import { put } from '@vercel/blob';
 import { DEFAULT_SYMBOLS } from '@/config/defaults';
+import { adjustForSplits } from '@/lib/utils/split-adjust';
 
 const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
 const DELAY_MS = 13_000; // 13s between calls to respect 5/min limit
@@ -25,7 +26,7 @@ function fetchAndParse(symbol: string, apiKey: string): Promise<StockData> {
       }
 
       const entries = timeSeries as Record<string, Record<string, string>>;
-      const bars: DailyBar[] = Object.entries(entries)
+      const rawBars: DailyBar[] = Object.entries(entries)
         .map(([date, values]) => ({
           date,
           open: parseFloat(values['1. open']),
@@ -36,6 +37,7 @@ function fetchAndParse(symbol: string, apiKey: string): Promise<StockData> {
         }))
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(-90);
+      const bars = adjustForSplits(rawBars);
 
       const latest = bars[bars.length - 1];
       const previous = bars[bars.length - 2];
