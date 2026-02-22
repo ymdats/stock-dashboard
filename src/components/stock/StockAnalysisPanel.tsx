@@ -8,15 +8,15 @@ interface StockAnalysisPanelProps {
   price: number;
 }
 
-// Score-based color gradient aligned with verdict labels
-// 強い買い(+40~) / 買い(+20~39) / やや買い(+5~19) / 中立 / やや売り / 売り / 強い売り
+// Score-based color gradient aligned with verdict labels (~14% each)
+// 強い買い(17+) / 買い(8~17) / 弱い買い(0~8) / 中立(-8~0) / 弱い売り(-16~-8) / 売り(-24~-16) / 強い売り(~-24)
 function getScoreStyle(score: number): { bg: string; text: string; border: string } {
-  if (score >= 40) return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-700' };
-  if (score >= 20) return { bg: 'bg-emerald-700/80', text: 'text-white', border: 'border-emerald-600' };
-  if (score >= 5)  return { bg: 'bg-transparent', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-600/40 dark:border-emerald-500/40' };
-  if (score > -5)  return { bg: 'bg-muted/50', text: 'text-muted-foreground', border: 'border-border' };
-  if (score > -20) return { bg: 'bg-transparent', text: 'text-red-600 dark:text-red-400', border: 'border-red-600/40 dark:border-red-500/40' };
-  if (score > -40) return { bg: 'bg-red-700/80', text: 'text-white', border: 'border-red-600' };
+  if (score > 17)  return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-700' };
+  if (score > 8)   return { bg: 'bg-emerald-700/80', text: 'text-white', border: 'border-emerald-600' };
+  if (score > 0)   return { bg: 'bg-transparent', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-600/40 dark:border-emerald-500/40' };
+  if (score > -8)  return { bg: 'bg-muted/50', text: 'text-muted-foreground', border: 'border-border' };
+  if (score > -16) return { bg: 'bg-transparent', text: 'text-red-600 dark:text-red-400', border: 'border-red-600/40 dark:border-red-500/40' };
+  if (score > -24) return { bg: 'bg-red-700/80', text: 'text-white', border: 'border-red-600' };
   return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700' };
 }
 

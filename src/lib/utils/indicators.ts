@@ -391,12 +391,13 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   const band = getScoreStats(score);
   let verdict: string;
   let verdictType: StockAnalysis['verdictType'];
-  if (score >= 40) { verdict = '強い買い'; verdictType = 'bullish'; }
-  else if (score >= 20) { verdict = '買い'; verdictType = 'bullish'; }
-  else if (score >= 5) { verdict = '弱い買い'; verdictType = 'bullish'; }
-  else if (score > -5) { verdict = '中立'; verdictType = 'neutral'; }
-  else if (score > -20) { verdict = '弱い売り'; verdictType = 'bearish'; }
-  else if (score > -40) { verdict = '売り'; verdictType = 'bearish'; }
+  // Thresholds calibrated for ~equal frequency (14% each, 30 symbols × 2yr)
+  if (score > 17) { verdict = '強い買い'; verdictType = 'bullish'; }
+  else if (score > 8) { verdict = '買い'; verdictType = 'bullish'; }
+  else if (score > 0) { verdict = '弱い買い'; verdictType = 'bullish'; }
+  else if (score > -8) { verdict = '中立'; verdictType = 'neutral'; }
+  else if (score > -16) { verdict = '弱い売り'; verdictType = 'bearish'; }
+  else if (score > -24) { verdict = '売り'; verdictType = 'bearish'; }
   else { verdict = '強い売り'; verdictType = 'bearish'; }
 
   const winRate = band.winRate;
