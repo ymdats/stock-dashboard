@@ -393,9 +393,9 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   let verdictType: StockAnalysis['verdictType'];
   if (score >= 40) { verdict = '強い買い'; verdictType = 'bullish'; }
   else if (score >= 20) { verdict = '買い'; verdictType = 'bullish'; }
-  else if (score >= 5) { verdict = 'やや買い'; verdictType = 'bullish'; }
+  else if (score >= 5) { verdict = '弱い買い'; verdictType = 'bullish'; }
   else if (score > -5) { verdict = '中立'; verdictType = 'neutral'; }
-  else if (score > -20) { verdict = 'やや売り'; verdictType = 'bearish'; }
+  else if (score > -20) { verdict = '弱い売り'; verdictType = 'bearish'; }
   else if (score > -40) { verdict = '売り'; verdictType = 'bearish'; }
   else { verdict = '強い売り'; verdictType = 'bearish'; }
 
