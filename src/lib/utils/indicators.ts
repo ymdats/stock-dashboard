@@ -226,24 +226,34 @@ export interface NextAction {
 }
 
 // Continuous score: -100 (strong sell) to +100 (strong buy)
-// Backtested score-band stats (30 symbols × 2yr, 7d forward):
-//   +40~: WR 67%, EV +2.6%  |  +25~40: WR 56%, EV +1.3%
-//   +15~25: WR 56%, EV +0.9% |  -15~+15: WR 53%, EV +0.6%
-//   -40~-15: WR 51%, EV +0.4% |  ~-40: WR 48%, EV -0.1%
-const SCORE_BANDS: { min: number; winRate: number; ev: number }[] = [
-  { min: 40, winRate: 67, ev: 2.6 },
-  { min: 25, winRate: 56, ev: 1.3 },
-  { min: 15, winRate: 56, ev: 0.9 },
-  { min: -15, winRate: 53, ev: 0.6 },
-  { min: -40, winRate: 51, ev: 0.4 },
-  { min: -Infinity, winRate: 48, ev: -0.1 },
+// Backtested anchor points (30 symbols × 2yr, 7d forward)
+// Piecewise linear interpolation gives continuous WR/EV for any score
+//   [score, winRate%, expectedValue%]
+const SCORE_ANCHORS: [number, number, number][] = [
+  [-100, 48, -0.1],
+  [ -40, 51,  0.4],
+  [   0, 53,  0.6],
+  [  25, 56,  1.1],
+  [  40, 67,  2.6],
+  [ 100, 67,  2.6],
 ];
 
-function getScoreBand(score: number): { winRate: number; ev: number } {
-  for (const band of SCORE_BANDS) {
-    if (score >= band.min) return { winRate: band.winRate, ev: band.ev };
+function lerpAnchors(score: number, idx: 1 | 2): number {
+  if (score <= SCORE_ANCHORS[0][0]) return SCORE_ANCHORS[0][idx];
+  for (let i = 0; i < SCORE_ANCHORS.length - 1; i++) {
+    if (score <= SCORE_ANCHORS[i + 1][0]) {
+      const t = (score - SCORE_ANCHORS[i][0]) / (SCORE_ANCHORS[i + 1][0] - SCORE_ANCHORS[i][0]);
+      return SCORE_ANCHORS[i][idx] + t * (SCORE_ANCHORS[i + 1][idx] - SCORE_ANCHORS[i][idx]);
+    }
   }
-  return SCORE_BANDS[SCORE_BANDS.length - 1];
+  return SCORE_ANCHORS[SCORE_ANCHORS.length - 1][idx];
+}
+
+function getScoreStats(score: number): { winRate: number; ev: number } {
+  return {
+    winRate: Math.round(lerpAnchors(score, 1)),
+    ev: Math.round(lerpAnchors(score, 2) * 10) / 10,
+  };
 }
 
 export interface StockAnalysis {
@@ -378,7 +388,7 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   score = Math.max(-100, Math.min(100, score));
 
   // Derive verdict from score
-  const band = getScoreBand(score);
+  const band = getScoreStats(score);
   let verdict: string;
   let verdictType: StockAnalysis['verdictType'];
   if (score >= 40) { verdict = '強い買い'; verdictType = 'bullish'; }
