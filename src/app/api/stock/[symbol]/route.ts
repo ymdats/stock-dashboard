@@ -84,6 +84,7 @@ export async function GET(
       await put(`stocks/${symbol}.json`, JSON.stringify({ ...data, cachedAt: Date.now() }), {
         access: 'public',
         addRandomSuffix: false,
+        allowOverwrite: true,
       });
     } catch {
       // Blob save failure is non-critical

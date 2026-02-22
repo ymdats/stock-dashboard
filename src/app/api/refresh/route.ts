@@ -76,6 +76,7 @@ export async function POST() {
       await put(`stocks/${symbol}.json`, JSON.stringify({ ...data, cachedAt: Date.now() }), {
         access: 'public',
         addRandomSuffix: false,
+        allowOverwrite: true,
       });
 
       results.push({ symbol, status: 'ok' });

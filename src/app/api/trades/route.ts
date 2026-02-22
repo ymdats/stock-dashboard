@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     await put(BLOB_PATH, JSON.stringify(store), {
       access: 'public',
       addRandomSuffix: false,
+      allowOverwrite: true,
     });
     return Response.json({ ok: true, updatedAt: store.updatedAt });
   } catch (err) {
