@@ -13,7 +13,7 @@ interface StockGridProps {
 
 export function StockGrid({ symbols, activeTrades, onBuy, onSell, onCancel }: StockGridProps) {
   return (
-    <div className="h-full grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 xl:grid-rows-2 auto-rows-fr">
+    <div className="h-full grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:grid-rows-3 auto-rows-fr">
       {symbols.map((symbol) => (
         <StockCard
           key={symbol}

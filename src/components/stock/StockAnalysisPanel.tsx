@@ -1,7 +1,6 @@
 'use client';
 
 import type { StockAnalysis } from '@/lib/utils/indicators';
-import { formatPrice } from '@/lib/utils/format';
 
 interface StockAnalysisPanelProps {
   analysis: StockAnalysis;
@@ -22,34 +21,34 @@ export function StockAnalysisPanel({ analysis }: StockAnalysisPanelProps) {
   const evPrefix = analysis.expectedValue >= 0 ? '+' : '';
 
   return (
-    <div className="border-t pt-1.5 space-y-1">
+    <div className="border-t pt-1 space-y-0.5">
       {/* Score badge + verdict + WR/EV */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <span className={`text-xs font-bold px-2 py-0.5 rounded border ${style.bg} ${style.text} ${style.border}`}>
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1">
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${style.bg} ${style.text} ${style.border}`}>
             {analysis.verdict}
           </span>
-          <span className={`text-[11px] font-mono tabular-nums ${
+          <span className={`text-[10px] font-mono tabular-nums ${
             analysis.score > 0
               ? 'text-emerald-600 dark:text-emerald-400'
               : analysis.score < 0
                 ? 'text-red-600 dark:text-red-400'
                 : 'text-muted-foreground'
           }`}>
-            勝率{analysis.winRate}% / {evPrefix}{analysis.expectedValue}%
+            WR{analysis.winRate}% / {evPrefix}{analysis.expectedValue}%
           </span>
         </div>
-        <span className="text-[11px] text-muted-foreground font-mono tabular-nums">
-          score {analysis.score > 0 ? '+' : ''}{analysis.score.toFixed(0)}
+        <span className="text-[10px] text-muted-foreground font-mono tabular-nums">
+          {analysis.score > 0 ? '+' : ''}{analysis.score.toFixed(0)}
         </span>
       </div>
 
       {/* Reasons */}
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+      <div className="flex flex-wrap gap-x-2 gap-y-0">
         {analysis.reasons.map((r) => (
           <span
             key={r.text}
-            className={`text-[11px] ${
+            className={`text-[10px] ${
               r.type === 'bullish'
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : r.type === 'bearish'
@@ -61,36 +60,6 @@ export function StockAnalysisPanel({ analysis }: StockAnalysisPanelProps) {
           </span>
         ))}
       </div>
-
-      {/* Target / Stop / Support / Resistance */}
-      {analysis.atrTarget && analysis.atrStop && (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] font-mono tabular-nums">
-          <div>
-            <span className="text-muted-foreground">Target: </span>
-            <span className="text-emerald-600 dark:text-emerald-400">
-              {formatPrice(analysis.atrTarget)} (+{analysis.upsidePct?.toFixed(1)}%)
-            </span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Stop: </span>
-            <span className="text-red-600 dark:text-red-400">
-              {formatPrice(analysis.atrStop)} (-{analysis.downsideRisk?.toFixed(1)}%)
-            </span>
-          </div>
-          {analysis.support.length > 0 && (
-            <div>
-              <span className="text-muted-foreground">Support: </span>
-              <span>{analysis.support.map((s) => `$${s}`).join(', ')}</span>
-            </div>
-          )}
-          {analysis.resistance.length > 0 && (
-            <div>
-              <span className="text-muted-foreground">Resist: </span>
-              <span>{analysis.resistance.map((r) => `$${r}`).join(', ')}</span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'AMZN', 'TSLA'] as const;
+export const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'AMZN', 'TSLA', 'META', 'NFLX', 'AMD', 'JPM', 'V', 'SONY'] as const;
 
 export const STOCK_NAMES: Record<string, string> = {
   AAPL: 'Apple / アップル',

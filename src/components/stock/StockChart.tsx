@@ -13,7 +13,7 @@ import {
 import type { DailyBar } from '@/lib/types/stock';
 import { formatPrice, formatVolume } from '@/lib/utils/format';
 import { sma, bollingerBands } from '@/lib/utils/indicators';
-import { InfoTip } from './InfoTip';
+
 
 interface StockChartProps {
   data: DailyBar[];
@@ -97,28 +97,8 @@ export function StockChart({ data }: StockChartProps) {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Legend */}
-      <div className="flex items-center gap-3 mb-1 shrink-0">
-        <InfoTip
-          label="価格"
-          description="90日間の終値チャート。緑＝期間中上昇、赤＝下落。ホバーでOHLC（始値・高値・安値・終値）と出来高を確認できます。"
-        />
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <span className="inline-block w-3 h-[2px] bg-blue-400" />
-          <InfoTip label="SMA20" description="20日移動平均線。短期トレンド。SMA50を上抜け＝上昇転換、下抜け＝下降転換。" />
-        </span>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <span className="inline-block w-3 h-[2px] bg-orange-400" />
-          <InfoTip label="SMA50" description="50日移動平均線。中期トレンド。この上なら上昇基調、下なら下降基調。" />
-        </span>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <span className="inline-block w-3 h-[2px] bg-purple-400/50" />
-          <InfoTip label="BB" description="ボリンジャーバンド。紫の帯の上限・下限付近は反転しやすいゾーン。" />
-        </span>
-      </div>
-
       {/* Price Chart */}
-      <div className="flex-1 min-h-[100px]">
+      <div className="flex-1 min-h-[60px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
