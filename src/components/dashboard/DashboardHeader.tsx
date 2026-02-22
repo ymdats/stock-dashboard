@@ -1,16 +1,21 @@
 'use client';
 
-import { Moon, Sun, TrendingUp, RefreshCw } from 'lucide-react';
+import { Moon, Sun, TrendingUp, RefreshCw, Briefcase } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useApiUsage } from '@/lib/hooks/useApiUsage';
 import type { RefreshProgress } from '@/lib/hooks/useRefreshAll';
 
+type View = 'dashboard' | 'portfolio';
+
 interface DashboardHeaderProps {
   stockCount: number;
   onRefresh?: () => void;
   progress: RefreshProgress;
+  view: View;
+  onViewChange: (view: View) => void;
+  activeTradeCount: number;
 }
 
 function formatRemaining(seconds: number): string {
@@ -20,7 +25,7 @@ function formatRemaining(seconds: number): string {
   return s > 0 ? `約${m}分${s}秒` : `約${m}分`;
 }
 
-export function DashboardHeader({ stockCount, onRefresh, progress }: DashboardHeaderProps) {
+export function DashboardHeader({ stockCount, onRefresh, progress, view, onViewChange, activeTradeCount }: DashboardHeaderProps) {
   const { theme, setTheme } = useTheme();
   const { remaining } = useApiUsage();
 
@@ -45,15 +50,31 @@ export function DashboardHeader({ stockCount, onRefresh, progress }: DashboardHe
         <Badge variant={remaining <= 5 ? 'destructive' : 'secondary'} className="font-mono tabular-nums text-xs">
           API残り {remaining}回
         </Badge>
+        {view === 'dashboard' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={onRefresh}
+            disabled={progress.isRefreshing}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${progress.isRefreshing ? 'animate-spin' : ''}`} />
+            {progress.isRefreshing ? '更新中…' : 'データ更新'}
+          </Button>
+        )}
         <Button
-          variant="outline"
+          variant={view === 'portfolio' ? 'default' : 'outline'}
           size="sm"
           className="h-8 gap-1.5 text-xs"
-          onClick={onRefresh}
-          disabled={progress.isRefreshing}
+          onClick={() => onViewChange(view === 'portfolio' ? 'dashboard' : 'portfolio')}
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${progress.isRefreshing ? 'animate-spin' : ''}`} />
-          {progress.isRefreshing ? '更新中…' : 'データ更新'}
+          <Briefcase className="h-3.5 w-3.5" />
+          ポートフォリオ
+          {activeTradeCount > 0 && (
+            <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px] font-mono">
+              {activeTradeCount}
+            </Badge>
+          )}
         </Button>
         <Button
           variant="ghost"

@@ -1,7 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   Tooltip,
   TooltipContent,
@@ -13,9 +19,14 @@ import { formatPrice, formatChange, formatPercent } from '@/lib/utils/format';
 import { StockChart } from './StockChart';
 import { StockChartSkeleton } from './StockChartSkeleton';
 import { StockAnalysisPanel } from './StockAnalysisPanel';
+import type { ActivePosition } from '@/lib/types/trade';
+import { TRADE_AMOUNT_JPY } from '@/lib/types/trade';
 
 interface StockCardProps {
   symbol: string;
+  activeTrade?: ActivePosition;
+  onBuy?: (symbol: string, price: number, score: number) => Promise<void>;
+  onSell?: (tradeId: string, sellPrice: number) => Promise<void>;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -29,7 +40,109 @@ function formatTimeAgo(date: Date): string {
   return `${days}日前`;
 }
 
-export function StockCard({ symbol }: StockCardProps) {
+function BuyDialog({ symbol, price, score, onBuy }: {
+  symbol: string; price: number; score: number;
+  onBuy: (symbol: string, price: number, score: number) => Promise<void>;
+}) {
+  const [editPrice, setEditPrice] = useState(price.toFixed(2));
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setEditPrice(price.toFixed(2)); }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-6 text-[11px] px-2">
+          買い記録
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{symbol} 購入記録</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div className="text-muted-foreground">
+            ¥{TRADE_AMOUNT_JPY.toLocaleString()}分を購入記録します
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">約定価格 (USD)</label>
+            <Input
+              type="number" step="0.01" value={editPrice}
+              onChange={(e) => setEditPrice(e.target.value)}
+              className="font-mono tabular-nums"
+            />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            スコア: {score > 0 ? '+' : ''}{score.toFixed(0)}
+          </div>
+          <Button className="w-full" disabled={saving || !parseFloat(editPrice)}
+            onClick={async () => {
+              setSaving(true);
+              await onBuy(symbol, parseFloat(editPrice), score);
+              setSaving(false);
+              setOpen(false);
+            }}>
+            {saving ? '保存中...' : '購入を記録'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CardSellDialog({ position, currentPrice, onSell }: {
+  position: ActivePosition; currentPrice: number;
+  onSell: (tradeId: string, sellPrice: number) => Promise<void>;
+}) {
+  const [price, setPrice] = useState(currentPrice.toFixed(2));
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+  const sellPrice = parseFloat(price) || 0;
+  const pnlPct = sellPrice > 0 ? ((sellPrice - position.buyPrice) / position.buyPrice) * 100 : 0;
+  const pnlJpy = Math.round((pnlPct / 100) * position.amountJpy);
+  const sign = pnlJpy >= 0 ? '+' : '';
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setPrice(currentPrice.toFixed(2)); }}>
+      <DialogTrigger asChild>
+        <Button variant={position.isSellDue ? 'destructive' : 'outline'} size="sm"
+          className={`h-6 text-[11px] px-2 ${position.isSellDue ? 'animate-pulse' : ''}`}>
+          売り記録
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{position.symbol} 売却確認</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between text-muted-foreground">
+            <span>保有: {position.daysHeld}日</span>
+            <span>買値: {formatPrice(position.buyPrice)}</span>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">売値 (USD)</label>
+            <Input type="number" step="0.01" value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="font-mono tabular-nums" />
+          </div>
+          <div className={`text-center text-lg font-bold font-mono tabular-nums ${pnlJpy >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {sign}¥{pnlJpy.toLocaleString()} ({sign}{pnlPct.toFixed(1)}%)
+          </div>
+          <Button className="w-full" disabled={sellPrice <= 0 || saving}
+            onClick={async () => {
+              setSaving(true);
+              await onSell(position.id, sellPrice);
+              setSaving(false);
+              setOpen(false);
+            }}>
+            {saving ? '保存中...' : '売却を記録'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function StockCard({ symbol, activeTrade, onBuy, onSell }: StockCardProps) {
   const { data, isLoading, error, lastFetched } =
     useStockData(symbol);
 
@@ -106,6 +219,34 @@ export function StockCard({ symbol }: StockCardProps) {
                 <StockAnalysisPanel analysis={analysis} price={data.quote.price} />
               </div>
             )}
+
+            {/* Trade actions row */}
+            <div className="flex items-center gap-2 shrink-0 pt-1 border-t">
+              {activeTrade ? (
+                <>
+                  {activeTrade.isSellDue ? (
+                    <Badge variant="destructive" className="text-[10px] animate-pulse">
+                      売りタイミング ({activeTrade.daysHeld}日)
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
+                      保有中 {activeTrade.daysHeld}日
+                    </Badge>
+                  )}
+                  {onSell && (
+                    <div className="ml-auto">
+                      <CardSellDialog position={activeTrade} currentPrice={data.quote.price} onSell={onSell} />
+                    </div>
+                  )}
+                </>
+              ) : (
+                onBuy && analysis && (
+                  <div className="ml-auto">
+                    <BuyDialog symbol={symbol} price={data.quote.price} score={analysis.score} onBuy={onBuy} />
+                  </div>
+                )
+              )}
+            </div>
           </>
         )}
       </CardContent>
