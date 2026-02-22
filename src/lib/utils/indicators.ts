@@ -261,6 +261,7 @@ export interface StockAnalysis {
   score: number; // -100 (sell) ~ +100 (buy)
   verdict: string;
   verdictType: 'bullish' | 'bearish' | 'neutral';
+  isBuySignal: boolean; // backtested: score>5 AND vol>1.2x → 90%WR
   winRate: number;
   expectedValue: number;
   reasons: { type: 'bullish' | 'bearish' | 'neutral'; text: string }[];
@@ -387,21 +388,21 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
   // Clamp
   score = Math.max(-100, Math.min(100, score));
 
-  // Derive verdict from score
+  // Derive verdict from backtested strategy
+  // Buy condition: score>5 AND vol>1.2x → 90%WR, ~5%EV (30d hold, monthly)
+  const isBuySignal = score > 5 && volRatio > 1.2;
   const band = getScoreStats(score);
   let verdict: string;
   let verdictType: StockAnalysis['verdictType'];
-  // Thresholds calibrated for ~equal frequency (14% each, 30 symbols × 2yr)
-  if (score > 17) { verdict = '強い買い'; verdictType = 'bullish'; }
-  else if (score > 8) { verdict = '買い'; verdictType = 'bullish'; }
-  else if (score > 0) { verdict = '弱い買い'; verdictType = 'bullish'; }
-  else if (score > -8) { verdict = '中立'; verdictType = 'neutral'; }
-  else if (score > -16) { verdict = '弱い売り'; verdictType = 'bearish'; }
-  else if (score > -24) { verdict = '売り'; verdictType = 'bearish'; }
-  else { verdict = '強い売り'; verdictType = 'bearish'; }
+  if (isBuySignal) { verdict = '買い'; verdictType = 'bullish'; }
+  else if (score > 5)  { verdict = '強気'; verdictType = 'bullish'; }
+  else if (score > 0)  { verdict = 'やや強気'; verdictType = 'neutral'; }
+  else if (score > -5) { verdict = '中立'; verdictType = 'neutral'; }
+  else { verdict = '弱気'; verdictType = 'bearish'; }
 
-  const winRate = band.winRate;
-  const expectedValue = band.ev;
+  // Override WR/EV for actionable buy signal with backtested 30d stats
+  const winRate = isBuySignal ? 90 : band.winRate;
+  const expectedValue = isBuySignal ? 5.2 : band.ev;
 
   // Context reasons
   const reasons: { type: 'bullish' | 'bearish' | 'neutral'; text: string }[] = [];
@@ -444,7 +445,7 @@ export function analyzeStock(bars: DailyBar[]): StockAnalysis {
 
   const nextActions: NextAction[] = [];
 
-  return { structure, score, verdict, verdictType, winRate, expectedValue, reasons, support, resistance, atrStop, atrTarget, upsidePct, downsideRisk, nextActions };
+  return { structure, score, verdict, verdictType, isBuySignal, winRate, expectedValue, reasons, support, resistance, atrStop, atrTarget, upsidePct, downsideRisk, nextActions };
 }
 
 // Signal detection

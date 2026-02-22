@@ -241,7 +241,12 @@ export function StockCard({ symbol, activeTrade, onBuy, onSell }: StockCardProps
                 </>
               ) : (
                 onBuy && analysis && (
-                  <div className="ml-auto">
+                  <div className="flex items-center gap-2 ml-auto">
+                    {analysis.isBuySignal && (
+                      <Badge className="text-[10px] bg-emerald-600 text-white border-emerald-700 animate-pulse">
+                        買いシグナル
+                      </Badge>
+                    )}
                     <BuyDialog symbol={symbol} price={data.quote.price} score={analysis.score} onBuy={onBuy} />
                   </div>
                 )

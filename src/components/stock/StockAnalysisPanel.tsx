@@ -8,20 +8,17 @@ interface StockAnalysisPanelProps {
   price: number;
 }
 
-// Score-based color gradient aligned with verdict labels (~14% each)
-// 強い買い(17+) / 買い(8~17) / 弱い買い(0~8) / 中立(-8~0) / 弱い売り(-16~-8) / 売り(-24~-16) / 強い売り(~-24)
-function getScoreStyle(score: number): { bg: string; text: string; border: string } {
-  if (score > 17)  return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-700' };
-  if (score > 8)   return { bg: 'bg-emerald-700/80', text: 'text-white', border: 'border-emerald-600' };
-  if (score > 0)   return { bg: 'bg-transparent', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-600/40 dark:border-emerald-500/40' };
-  if (score > -8)  return { bg: 'bg-muted/50', text: 'text-muted-foreground', border: 'border-border' };
-  if (score > -16) return { bg: 'bg-transparent', text: 'text-red-600 dark:text-red-400', border: 'border-red-600/40 dark:border-red-500/40' };
-  if (score > -24) return { bg: 'bg-red-700/80', text: 'text-white', border: 'border-red-600' };
-  return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700' };
+// Score-based color: 買い(score>5+vol>1.2) / 強気(score>5) / やや強気(>0) / 中立(>-5) / 弱気(≤-5)
+function getScoreStyle(score: number, isBuySignal: boolean): { bg: string; text: string; border: string } {
+  if (isBuySignal) return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-700' };
+  if (score > 5)   return { bg: 'bg-emerald-700/30', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/50' };
+  if (score > 0)   return { bg: 'bg-transparent', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-600/30 dark:border-emerald-500/30' };
+  if (score > -5)  return { bg: 'bg-muted/50', text: 'text-muted-foreground', border: 'border-border' };
+  return { bg: 'bg-transparent', text: 'text-red-600 dark:text-red-400', border: 'border-red-600/30 dark:border-red-500/30' };
 }
 
 export function StockAnalysisPanel({ analysis }: StockAnalysisPanelProps) {
-  const style = getScoreStyle(analysis.score);
+  const style = getScoreStyle(analysis.score, analysis.isBuySignal);
   const evPrefix = analysis.expectedValue >= 0 ? '+' : '';
 
   return (
