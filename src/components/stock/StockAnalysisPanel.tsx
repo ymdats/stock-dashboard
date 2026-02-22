@@ -8,17 +8,15 @@ interface StockAnalysisPanelProps {
   price: number;
 }
 
-// Score-based color gradient: -100 (red) → 0 (gray) → +100 (green)
+// Score-based color gradient aligned with verdict labels
+// 強い買い(+40~) / 買い(+20~39) / やや買い(+5~19) / 中立 / やや売り / 売り / 強い売り
 function getScoreStyle(score: number): { bg: string; text: string; border: string } {
-  const abs = Math.abs(score);
   if (score >= 40) return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-700' };
-  if (score >= 25) return { bg: 'bg-emerald-500/70', text: 'text-white', border: 'border-emerald-600' };
-  if (score >= 15) return { bg: 'bg-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-500/40' };
-  if (score >= 5)  return { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/25' };
+  if (score >= 20) return { bg: 'bg-emerald-500/50', text: 'text-emerald-950 dark:text-white', border: 'border-emerald-500/60' };
+  if (score >= 5)  return { bg: 'bg-emerald-500/15', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-500/25' };
   if (score > -5)  return { bg: 'bg-muted/50', text: 'text-muted-foreground', border: 'border-border' };
-  if (score > -15) return { bg: 'bg-red-500/15', text: 'text-red-600 dark:text-red-400', border: 'border-red-500/25' };
-  if (score > -25) return { bg: 'bg-red-500/30', text: 'text-red-700 dark:text-red-300', border: 'border-red-500/40' };
-  if (score > -40) return { bg: 'bg-red-500/70', text: 'text-white', border: 'border-red-600' };
+  if (score > -20) return { bg: 'bg-red-500/15', text: 'text-red-700 dark:text-red-400', border: 'border-red-500/25' };
+  if (score > -40) return { bg: 'bg-red-500/50', text: 'text-red-950 dark:text-white', border: 'border-red-500/60' };
   return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700' };
 }
 
